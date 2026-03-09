@@ -154,6 +154,32 @@ public class GamePanel extends JPanel implements Runnable {
                     if (player1 != null && player2 != null) {
                         player1.update(keyH, player2);
                         player2.update(keyH, player1);
+
+                        // --- NUOVO: CONTROLLO DEL K.O. ---
+                        if (player1.hp <= 0 || player2.hp <= 0) {
+                            battlePhase = 3;
+                            stateTimer = 0;
+                        }
+                    }
+                }
+                else if (battlePhase == 3) {
+                    // FASE 3: Mostra l'icona K.O.
+                    stateTimer++;
+                    if (stateTimer > 120) { // Aspetta 2 secondi (120 frame a 60 FPS)
+                        battlePhase = 4;
+                    }
+                }
+                else if (battlePhase == 4) {
+                    // FASE 4: Schermata Vincitore
+                    if (keyH.p1_block || keyH.p2_block) {
+                        gameState = 1; // Ritorna al Main Menu
+                        menuCooldown = COOLDOWN_TIME;
+
+                        // Resetta le variabili per la prossima partita
+                        p1Ready = false;
+                        p2Ready = false;
+                        player1 = null;
+                        player2 = null;
                     }
                 }
                 break;
@@ -584,17 +610,47 @@ public class GamePanel extends JPanel implements Runnable {
             currentStatusIcon = rm.fightIcon;
         }
         else if (battlePhase == 3) {
-            currentStatusIcon = rm.koIcon;
-        }
-        else if (battlePhase == 4) {
-            currentStatusIcon = rm.winnerIcon;
+            currentStatusIcon = rm.koIcon; // Mostra l'icona K.O.
         }
 
+        // Disegna l'icona corrente (Ready, Fight o KO)
         if (currentStatusIcon != null) {
             int drawW = (targetH * currentStatusIcon.getWidth()) / currentStatusIcon.getHeight();
             int drawX = (SCREEN_WIDTH - drawW) / 2;
             int drawY = 220;
             g2d.drawImage(currentStatusIcon, drawX, drawY, drawW, targetH, null);
+        }
+
+        // --- NUOVO: SCHERMATA VINCITORE (Fase 4) ---
+        if (battlePhase == 4) {
+            // 1. Oscura la schermata con un nero semi-trasparente (150 su 255)
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // 2. Determina chi ha vinto e imposta Testo + Colore
+            String winnerText;
+            Color winnerColor;
+
+            if (player2.hp <= 0) {
+                winnerText = "PLAYER ONE WINS";
+                winnerColor = Color.RED; // Stesso rosso del cursore P1
+            } else {
+                winnerText = "PLAYER TWO WINS";
+                winnerColor = new Color(50, 150, 255); // Stesso azzurro del cursore P2
+            }
+
+            // 3. Stampa la scritta della vittoria al centro
+            g2d.setColor(winnerColor);
+            setCustomFont(g2d, 70f);
+            int textX = (SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(winnerText)) / 2;
+            g2d.drawString(winnerText, textX, 250);
+
+            // 4. Scritta grigia per tornare al menu (uguale a Credits/Commands)
+            g2d.setColor(Color.GRAY);
+            setCustomFont(g2d, 25f);
+            String returnText = "Press BLOCK to return to Menu";
+            int retX = (SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(returnText)) / 2;
+            g2d.drawString(returnText, retX, 560);
         }
     }
 
