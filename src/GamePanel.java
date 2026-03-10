@@ -150,22 +150,25 @@ public class GamePanel extends JPanel implements Runnable {
                     if (battlePhase == 0 && stateTimer > 60) { battlePhase = 1; stateTimer = 0; }
                     if (battlePhase == 1 && stateTimer > 40) { battlePhase = 2; stateTimer = 0; }
                 }
-                else if (battlePhase == 2) {
-                    if (player1 != null && player2 != null) {
-                        player1.update(keyH, player2);
-                        player2.update(keyH, player1);
 
-                        // --- NUOVO: CONTROLLO DEL K.O. ---
-                        if (player1.hp <= 0 || player2.hp <= 0) {
-                            battlePhase = 3;
-                            stateTimer = 0;
-                        }
+                // --- LA MAGIA È QUI: Aggiorniamo i personaggi in TUTTE le fasi (2, 3 e 4) ---
+                if (battlePhase >= 2 && player1 != null && player2 != null) {
+                    player1.update(keyH, player2);
+                    player2.update(keyH, player1);
+                }
+
+                if (battlePhase == 2) {
+                    // Controllo del K.O. solo durante il combattimento attivo
+                    if (player1.hp <= 0 || player2.hp <= 0) {
+                        battlePhase = 3;
+                        stateTimer = 0;
                     }
                 }
                 else if (battlePhase == 3) {
                     // FASE 3: Mostra l'icona K.O.
+                    // Mentre il timer scorre, i personaggi dietro continuano ad animarsi!
                     stateTimer++;
-                    if (stateTimer > 120) { // Aspetta 2 secondi (120 frame a 60 FPS)
+                    if (stateTimer > 120) { // Aspetta 2 secondi
                         battlePhase = 4;
                     }
                 }
