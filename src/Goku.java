@@ -528,6 +528,8 @@ public class Goku extends Fighter {
         if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
         g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + drawW, srcY + drawH, null);
 
+        drawPlayerPin(g2d, x + shiftX, drawY, drawW);
+
         drawUniversalHUD(g2d, "KAMEHAMEHA");
     }
 }

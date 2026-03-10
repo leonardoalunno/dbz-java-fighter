@@ -114,6 +114,26 @@ public abstract class Fighter {
     public abstract void draw(Graphics2D g2d);
     public abstract void update(KeyHandler keyH, Fighter opponent);
 
+
+    // ==========================================
+    // --- PIN SOPRA LA TESTA DEL GIOCATORE ---
+    // ==========================================
+    protected void drawPlayerPin(Graphics2D g2d, int drawX, int drawY, int drawW) {
+        ResourceManager resM = ResourceManager.getInstance();
+        BufferedImage pin = (playerID == 1) ? resM.pinP1 : resM.pinP2;
+
+        if (pin != null) {
+            int pinW = 16; // Larghezza del pin (modificala se serve!)
+            int pinH = (pinW * pin.getHeight()) / pin.getWidth(); // Mantiene le proporzioni originali
+
+            // Centriamo il pin rispetto alla larghezza corrente dello sprite
+            int pinX = drawX + (drawW - pinW) / 2;
+            int pinY = drawY - pinH - 12; // Fluttua 12 pixel sopra la testa
+
+            g2d.drawImage(pin, pinX, pinY, pinW, pinH, null);
+        }
+    }
+
     // ==========================================
     // --- HUD UNIVERSALE SIMMETRICO ---
     // ==========================================
@@ -128,6 +148,25 @@ public abstract class Fighter {
 
             int hX = (playerID == 1) ? 20 : 800 - hDrawW - 20;
             int hY = 20;
+
+            // 0. SCRITTA PLAYER ONE / PLAYER TWO SOPRA LA BARRA HP
+            if (resM.saiyanFont != null) {
+                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 22f));
+                String pText = (playerID == 1) ? "PLAYER ONE" : "PLAYER TWO";
+
+                // Applica i colori: Rosso per P1, Azzurro per P2
+                g2d.setColor((playerID == 1) ? Color.RED : new Color(50, 150, 255));
+
+                // Allineiamo il testo esattamente dove inizia la barra degli HP
+                int pTextX = (playerID == 1) ?
+                        hX + (int)(272 * uiScale) :
+                        hX + hDrawW - (int)(272 * uiScale) - g2d.getFontMetrics().stringWidth(pText);
+
+                // Y posizionata poco sopra l'inizio della barra HP
+                int pTextY = hY + (int)(80 * uiScale);
+
+                g2d.drawString(pText, pTextX, pTextY);
+            }
 
             // 1. BARRE DINAMICHE
             double hpPercent = (double) hp / maxHP;

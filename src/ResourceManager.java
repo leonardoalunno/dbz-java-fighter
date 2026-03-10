@@ -31,6 +31,7 @@ public class ResourceManager {
     public BufferedImage mainMenuBg, readyIcon, vsIcon, winnerIcon;
     public BufferedImage menuCursor;
     public BufferedImage hudFull;
+    public BufferedImage pinP1, pinP2;
 
     private ResourceManager() {
         loadImages();
@@ -99,6 +100,8 @@ public class ResourceManager {
             winnerIcon = ImageIO.read(new File("assets/menu/winner_icon.png"));
             menuCursor = ImageIO.read(new File("assets/menu/cursor.png"));
             hudFull = ImageIO.read(new File("assets/menu/hud.png"));
+            pinP1 = ImageIO.read(new File("assets/menu/pin_player_one.png"));
+            pinP2 = ImageIO.read(new File("assets/menu/pin_player_two.png"));
 
             System.out.println("Risorse caricate con successo!");
 
