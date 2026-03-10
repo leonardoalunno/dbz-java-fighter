@@ -33,6 +33,9 @@ public class ResourceManager {
     public BufferedImage hudFull;
     public BufferedImage pinP1, pinP2;
 
+    // --- EFFETTI VISIVI (VFX) ---
+    public BufferedImage kiblastBlue, kiblastYellow, kiblastRed, kiblastGreen, kiblastPurple, kiblastGray;
+
     private ResourceManager() {
         loadImages();
     }
@@ -102,6 +105,14 @@ public class ResourceManager {
             hudFull = ImageIO.read(new File("assets/menu/hud.png"));
             pinP1 = ImageIO.read(new File("assets/menu/pin_player_one.png"));
             pinP2 = ImageIO.read(new File("assets/menu/pin_player_two.png"));
+
+            // 5. CARICAMENTO EFFETTI VISIVI (VFX)
+            kiblastBlue = ImageIO.read(new File("assets/effects/kiblast_blue.png"));
+            kiblastYellow = ImageIO.read(new File("assets/effects/kiblast_yellow.png"));
+            kiblastRed = ImageIO.read(new File("assets/effects/kiblast_red.png"));
+            kiblastGreen = ImageIO.read(new File("assets/effects/kiblast_green.png"));
+            kiblastPurple = ImageIO.read(new File("assets/effects/kiblast_purple.png"));
+            kiblastGray = ImageIO.read(new File("assets/effects/kiblast_gray.png"));
 
             System.out.println("Risorse caricate con successo!");
 

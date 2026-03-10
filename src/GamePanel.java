@@ -34,7 +34,6 @@ public class GamePanel extends JPanel implements Runnable {
     private int p1Cursor = 0, p2Cursor = 4;
     private boolean p1Ready = false, p2Ready = false;
 
-    // Nomi corretti senza punti
     private String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Sup Kai"};
 
     private int stageCursor = 0;
@@ -81,7 +80,6 @@ public class GamePanel extends JPanel implements Runnable {
         switch(gameState) {
             case -1: // SPLASH SCREEN
                 stateTimer++;
-                // Dopo 3 secondi (180 frame) passa al Loading
                 if (stateTimer > 180) {
                     gameState = 0;
                     stateTimer = 0;
@@ -101,17 +99,14 @@ public class GamePanel extends JPanel implements Runnable {
 
             case 1: // MAIN MENU
                 if (menuCooldown == 0) {
-                    // Scorre GIÙ: accetta sia 'S' (p1_down) sia 'Freccia Giù' (p2_down)
                     if (keyH.p1_down || keyH.p2_down) {
                         mainMenuOption = (mainMenuOption + 1) % 5;
                         menuCooldown = COOLDOWN_TIME;
                     }
-                    // Scorre SÙ: accetta sia 'W' (p1_up) sia 'Freccia Sù' (p2_up)
                     if (keyH.p1_up || keyH.p2_up) {
                         mainMenuOption = (mainMenuOption + 4) % 5;
                         menuCooldown = COOLDOWN_TIME;
                     }
-                    // SELEZIONA: accetta sia 'F' (p1_punch) sia 'INVIO' (enterPressed)
                     if (keyH.p1_punch || keyH.enterPressed) {
                         if (mainMenuOption == 0) {
                             gameState = 2; // Z BATTLE VS
@@ -151,34 +146,27 @@ public class GamePanel extends JPanel implements Runnable {
                     if (battlePhase == 1 && stateTimer > 40) { battlePhase = 2; stateTimer = 0; }
                 }
 
-                // --- LA MAGIA È QUI: Aggiorniamo i personaggi in TUTTE le fasi (2, 3 e 4) ---
                 if (battlePhase >= 2 && player1 != null && player2 != null) {
                     player1.update(keyH, player2);
                     player2.update(keyH, player1);
                 }
 
                 if (battlePhase == 2) {
-                    // Controllo del K.O. solo durante il combattimento attivo
                     if (player1.hp <= 0 || player2.hp <= 0) {
                         battlePhase = 3;
                         stateTimer = 0;
                     }
                 }
                 else if (battlePhase == 3) {
-                    // FASE 3: Mostra l'icona K.O.
-                    // Mentre il timer scorre, i personaggi dietro continuano ad animarsi!
                     stateTimer++;
-                    if (stateTimer > 120) { // Aspetta 2 secondi
+                    if (stateTimer > 120) {
                         battlePhase = 4;
                     }
                 }
                 else if (battlePhase == 4) {
-                    // FASE 4: Schermata Vincitore
                     if (keyH.p1_block || keyH.p2_block) {
-                        gameState = 1; // Ritorna al Main Menu
+                        gameState = 1;
                         menuCooldown = COOLDOWN_TIME;
-
-                        // Resetta le variabili per la prossima partita
                         p1Ready = false;
                         p2Ready = false;
                         player1 = null;
@@ -198,13 +186,11 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void updateCharacterMenu() {
-        // --- LOGICA ANNULLA / TORNA AL MENU ---
-        // Se nessuno è pronto e viene premuto il tasto Parata (Back), torna al Main Menu
         if (!p1Ready && !p2Ready && menuCooldown == 0) {
             if (keyH.p1_block || keyH.p2_block) {
-                gameState = 1; // Torna al Main Menu
+                gameState = 1;
                 menuCooldown = COOLDOWN_TIME;
-                return; // Esce subito per evitare altri input
+                return;
             }
         }
 
@@ -214,7 +200,6 @@ public class GamePanel extends JPanel implements Runnable {
             if (keyH.p1_left) { p1Cursor = (p1Cursor + 4) % 5; menuCooldown = COOLDOWN_TIME; }
             if (keyH.p1_punch) { p1Ready = true; menuCooldown = COOLDOWN_TIME; }
         }
-        // Annulla scelta P1 (già presente, ma assicuriamoci sia coerente)
         if (p1Ready && keyH.p1_block && menuCooldown == 0) {
             p1Ready = false;
             menuCooldown = COOLDOWN_TIME;
@@ -226,7 +211,6 @@ public class GamePanel extends JPanel implements Runnable {
             if (keyH.p2_left) { p2Cursor = (p2Cursor + 4) % 5; menuCooldown = COOLDOWN_TIME; }
             if (keyH.p2_punch) { p2Ready = true; menuCooldown = COOLDOWN_TIME; }
         }
-        // Annulla scelta P2
         if (p2Ready && keyH.p2_block && menuCooldown == 0) {
             p2Ready = false;
             menuCooldown = COOLDOWN_TIME;
@@ -240,10 +224,9 @@ public class GamePanel extends JPanel implements Runnable {
 
     private void updateStageMenu() {
         if (menuCooldown == 0) {
-            // --- TORNA A CHARACTER SELECT ---
             if (keyH.p1_block || keyH.p2_block) {
-                gameState = 2; // Torna a Char Select
-                p1Ready = false; // Resetta lo stato di pronto per permettere modifiche
+                gameState = 2;
+                p1Ready = false;
                 p2Ready = false;
                 menuCooldown = COOLDOWN_TIME;
                 return;
@@ -260,28 +243,24 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void initBattle() {
-        int startDistance = 100; // Distanza dai bordi
-        int charWidth = 48;      // Larghezza base di Goku
+        int startDistance = 100;
+        int charWidth = 48;
 
-        // Player 1: inizia a 200px da sinistra
         if (p1Cursor == 0) {
             player1 = new Goku(startDistance, 480, 1);
         } else {
-            player1 = new Goku(startDistance, 480, 1);
+            player1 = new Goku(startDistance, 480, 1); // Da aggiornare per Vegeta
         }
 
-        // Player 2: deve finire a 200px da destra
-        // Calcolo: 800 (schermo) - 200 (distanza) - 48 (larghezza personaggio) = 552
         int p2StartX = SCREEN_WIDTH - startDistance - charWidth;
 
         if (p2Cursor == 0) {
             player2 = new Goku(p2StartX, 480, 2);
         } else {
-            player2 = new Goku(p2StartX, 480, 2);
+            player2 = new Goku(p2StartX, 480, 2); // Da aggiornare per Vegeta
         }
     }
 
-    // --- HELPER METHOD FONT SAIYAN ---
     private void setCustomFont(Graphics2D g2d, float size) {
         if (rm.saiyanFont != null) {
             g2d.setFont(rm.saiyanFont.deriveFont(Font.PLAIN, size));
@@ -290,7 +269,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // --- HELPER METHOD FONT BANGERS ---
     private void setBangersFont(Graphics2D g2d, float size) {
         if (rm.bangersFont != null) {
             g2d.setFont(rm.bangersFont.deriveFont(Font.PLAIN, size));
@@ -323,33 +301,24 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
         if (rm.splashLogo != null) {
-            float alpha = 1.0f; // Trasparenza base
-
-            // Primi 60 frame (1 secondo): Fade In (Appare)
+            float alpha = 1.0f;
             if (stateTimer < 60) {
                 alpha = (float) stateTimer / 60.0f;
-            }
-            // Ultimi 60 frame (1 secondo): Fade Out (Scompare)
-            else if (stateTimer > 120) {
+            } else if (stateTimer > 120) {
                 alpha = 1.0f - ((float)(stateTimer - 120) / 60.0f);
             }
 
-            // Sicurezza per evitare errori di calcolo in Java
             if (alpha < 0.0f) alpha = 0.0f;
             if (alpha > 1.0f) alpha = 1.0f;
 
-            // Applica la trasparenza
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
 
-            // Disegna il logo centrato
             int logoW = 500;
             int logoH = (logoW * rm.splashLogo.getHeight()) / rm.splashLogo.getWidth();
             int logoX = (SCREEN_WIDTH - logoW) / 2;
             int logoY = (SCREEN_HEIGHT - logoH) / 2;
 
             g2d.drawImage(rm.splashLogo, logoX, logoY, logoW, logoH, null);
-
-            // IMPORTANTE: Resetta la trasparenza al 100% per non rendere invisibile il resto del gioco!
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
     }
@@ -387,51 +356,48 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void drawMainMenu(Graphics2D g2d) {
-        // 1. Sfondo e filtro scuro
         if (rm.mainMenuBg != null) {
             g2d.drawImage(rm.mainMenuBg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, null);
-            g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         }
 
-        // 2. Logo DBZ
+        int boxCenterX = 230;
+
         if (rm.dbzLogo != null) {
-            int logoW = 400;
+            int logoW = 340;
             int logoH = (logoW * rm.dbzLogo.getHeight()) / rm.dbzLogo.getWidth();
-            g2d.drawImage(rm.dbzLogo, (SCREEN_WIDTH - logoW)/2, 30, logoW, logoH, null);
+            int logoX = boxCenterX - (logoW / 2);
+            g2d.drawImage(rm.dbzLogo, logoX, 35, logoW, logoH, null);
         }
 
-        // 3. Voci del Menu scritte con il Font
         String[] menuOptions = {"Z BATTLE VS", "TRAINING", "COMMANDS", "CREDITS", "EXIT"};
+        int startY = 210;
+        int spacing = 52;
 
-        int startY = 270;  // Altezza di partenza
-        int spacing = 60;  // Spazio tra una voce e l'altra
-
-        setCustomFont(g2d, 50f); // Font Saiyan bello grande
+        setCustomFont(g2d, 42f);
 
         for (int i = 0; i < menuOptions.length; i++) {
             String text = menuOptions[i];
-
-            // Calcolo matematico per il centro esatto dello schermo
             int textWidth = g2d.getFontMetrics().stringWidth(text);
-            int textX = (SCREEN_WIDTH - textWidth) / 2;
+            int textX = boxCenterX - (textWidth / 2);
             int textY = startY + (i * spacing);
 
-            // Se l'opzione è quella selezionata...
-            if (i == mainMenuOption) {
-                g2d.setColor(Color.YELLOW); // Diventa Gialla
+            g2d.setColor(Color.BLACK);
+            g2d.drawString(text, textX - 2, textY - 2);
+            g2d.drawString(text, textX + 2, textY - 2);
+            g2d.drawString(text, textX - 2, textY + 2);
+            g2d.drawString(text, textX + 2, textY + 2);
 
-                // Disegna il cursore a destra della parola
+            if (i == mainMenuOption) {
+                g2d.setColor(Color.YELLOW);
                 if (rm.menuCursor != null) {
-                    int cSize = 30;
-                    int cx = textX + textWidth + 15;
-                    int cy = textY - (cSize / 2) - 15; // Centrato rispetto all'altezza del testo
+                    int cSize = 25;
+                    int cx = textX + textWidth + 10;
+                    int cy = textY - (cSize / 2) - 10;
                     g2d.drawImage(rm.menuCursor, cx, cy, cSize, cSize, null);
                 }
             } else {
-                g2d.setColor(Color.WHITE); // Altrimenti resta Bianca
+                g2d.setColor(Color.WHITE);
             }
-
             g2d.drawString(text, textX, textY);
         }
     }
@@ -444,14 +410,11 @@ public class GamePanel extends JPanel implements Runnable {
         setCustomFont(g2d, 60f);
         g2d.drawString("CHARACTER SELECT", 170, 100);
 
-        // Array icone aggiornato: Broly è al quarto posto, Sup Kai al quinto
         BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconSupremeKai};
-
-        int size = 90; // Icone giganti! (prima era 60)
-        int spacing = 120; // Aumentato lo spazio tra di loro
-        // Calcolo matematico per centrare le 5 icone perfettamente nello schermo
+        int size = 90;
+        int spacing = 120;
         int startX = (SCREEN_WIDTH - (spacing * 4 + size)) / 2;
-        int startY = 230; // Leggermente rialzato per far respirare il layout
+        int startY = 230;
 
         for(int i = 0; i < 5; i++) {
             int x = startX + (i * spacing);
@@ -461,7 +424,6 @@ public class GamePanel extends JPanel implements Runnable {
             setCustomFont(g2d, 22f);
             int textWidth = g2d.getFontMetrics().stringWidth(charNames[i]);
             int textX = x + (size / 2) - (textWidth / 2);
-            // Nome distanziato in modo dinamico in base alla grandezza dell'icona
             g2d.drawString(charNames[i], textX, startY + size + 35);
         }
 
@@ -494,42 +456,35 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setColor(new Color(20, 20, 30));
         g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Titolo Giallo
         g2d.setColor(Color.YELLOW);
         setCustomFont(g2d, 60f);
         int titleWidth = g2d.getFontMetrics().stringWidth("STAGE SELECT");
         g2d.drawString("STAGE SELECT", (SCREEN_WIDTH - titleWidth) / 2, 120);
 
         BufferedImage[] stageIcons = {rm.canyonIcon, rm.tournamentDayIcon, rm.tournamentSunsetIcon};
-
-        // --- MODIFICA: ICONE QUADRATE ---
-        int iconSize = 120; // Dimensione fissa per W e H
-        int spacing = 200;  // Spazio tra i centri delle icone
+        int iconSize = 120;
+        int spacing = 200;
         int startX = (SCREEN_WIDTH - (spacing * 2 + iconSize)) / 2;
-        int y = 240; // Leggermente più su per bilanciare il testo in basso
+        int y = 240;
 
         for (int i = 0; i < 3; i++) {
             int x = startX + (i * spacing);
 
-            // Disegno l'immagine quadrata
             if (stageIcons[i] != null) {
                 g2d.drawImage(stageIcons[i], x, y, iconSize, iconSize, null);
             }
 
             if (i == stageCursor) {
-                // Bordo giallo per la selezione (quadrato)
                 g2d.setColor(Color.YELLOW);
                 g2d.setStroke(new BasicStroke(5));
                 g2d.drawRect(x - 8, y - 8, iconSize + 16, iconSize + 16);
 
-                // Nome dello stage
                 g2d.setColor(Color.WHITE);
                 setCustomFont(g2d, 35f);
                 int textWidth = g2d.getFontMetrics().stringWidth(stageNames[i]);
                 int textX = (SCREEN_WIDTH - textWidth) / 2;
                 g2d.drawString(stageNames[i], textX, 480);
             } else {
-                // Bordo grigio scuro per gli altri
                 g2d.setColor(Color.DARK_GRAY);
                 g2d.setStroke(new BasicStroke(3));
                 g2d.drawRect(x - 8, y - 8, iconSize + 16, iconSize + 16);
@@ -541,36 +496,31 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setColor(Color.BLACK);
         g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Array icone aggiornato con Broly al posto giusto!
         BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconSupremeKai};
 
         int iconSize = 150;
         int p1X = 150, p1Y = 220;
         int p2X = 500, p2Y = 220;
 
-        // Impostiamo il bordo bianco (4 pixel di spessore)
         g2d.setColor(Color.WHITE);
         g2d.setStroke(new BasicStroke(4));
 
-        // DISEGNO P1 (Bordo e Icona)
         if (icons[p1Cursor] != null) {
             g2d.drawRect(p1X - 4, p1Y - 4, iconSize + 8, iconSize + 8);
             g2d.drawImage(icons[p1Cursor], p1X, p1Y, iconSize, iconSize, null);
         }
 
-        // DISEGNO P2 (Bordo e Icona)
         if (icons[p2Cursor] != null) {
             g2d.drawRect(p2X - 4, p2Y - 4, iconSize + 8, iconSize + 8);
             g2d.drawImage(icons[p2Cursor], p2X, p2Y, iconSize, iconSize, null);
         }
 
-        // --- NOMI SOPRA LE ICONE (Font Saiyan) ---
         setCustomFont(g2d, 40f);
         g2d.setColor(Color.WHITE);
 
         String nameP1 = charNames[p1Cursor];
         int nameP1Width = g2d.getFontMetrics().stringWidth(nameP1);
-        int nameP1X = p1X + (iconSize / 2) - (nameP1Width / 2); // Centrato matematicamente rispetto all'icona
+        int nameP1X = p1X + (iconSize / 2) - (nameP1Width / 2);
         g2d.drawString(nameP1, nameP1X, p1Y - 20);
 
         String nameP2 = charNames[p2Cursor];
@@ -578,13 +528,11 @@ public class GamePanel extends JPanel implements Runnable {
         int nameP2X = p2X + (iconSize / 2) - (nameP2Width / 2);
         g2d.drawString(nameP2, nameP2X, p2Y - 20);
 
-        // Logo VS centrale
         if (rm.vsIcon != null) {
             int vsTargetW = 120;
             int vsTargetH = (vsTargetW * rm.vsIcon.getHeight()) / rm.vsIcon.getWidth();
             int vsX = (SCREEN_WIDTH - vsTargetW) / 2;
             int vsY = 220 + (iconSize / 2) - (vsTargetH / 2);
-
             g2d.drawImage(rm.vsIcon, vsX, vsY, vsTargetW, vsTargetH, null);
         }
     }
@@ -600,8 +548,18 @@ public class GamePanel extends JPanel implements Runnable {
         if (sky != null) g2d.drawImage(sky, 0, 0, SCREEN_WIDTH, 300, null);
         if (floor != null) g2d.drawImage(floor, 0, 300, SCREEN_WIDTH, 300, null);
 
-        if (player1 != null) player1.draw(g2d);
-        if (player2 != null) player2.draw(g2d);
+        // --- Z-INDEX DINAMICO: CHI ATTACCA STA DAVANTI! ---
+        if (player1 != null && player2 != null) {
+            if (player2.isAttacking && !player1.isAttacking) {
+                // Se P2 attacca, P1 sta dietro
+                player1.draw(g2d);
+                player2.draw(g2d);
+            } else {
+                // In tutti gli altri casi (o se attacca P1), P1 sta davanti
+                player2.draw(g2d);
+                player1.draw(g2d);
+            }
+        }
 
         BufferedImage currentStatusIcon = null;
         int targetH = 100;
@@ -613,10 +571,9 @@ public class GamePanel extends JPanel implements Runnable {
             currentStatusIcon = rm.fightIcon;
         }
         else if (battlePhase == 3) {
-            currentStatusIcon = rm.koIcon; // Mostra l'icona K.O.
+            currentStatusIcon = rm.koIcon;
         }
 
-        // Disegna l'icona corrente (Ready, Fight o KO)
         if (currentStatusIcon != null) {
             int drawW = (targetH * currentStatusIcon.getWidth()) / currentStatusIcon.getHeight();
             int drawX = (SCREEN_WIDTH - drawW) / 2;
@@ -624,31 +581,26 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.drawImage(currentStatusIcon, drawX, drawY, drawW, targetH, null);
         }
 
-        // --- NUOVO: SCHERMATA VINCITORE (Fase 4) ---
         if (battlePhase == 4) {
-            // 1. Oscura la schermata con un nero semi-trasparente (150 su 255)
             g2d.setColor(new Color(0, 0, 0, 150));
             g2d.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-            // 2. Determina chi ha vinto e imposta Testo + Colore
             String winnerText;
             Color winnerColor;
 
             if (player2.hp <= 0) {
                 winnerText = "PLAYER ONE WINS";
-                winnerColor = Color.RED; // Stesso rosso del cursore P1
+                winnerColor = Color.RED;
             } else {
                 winnerText = "PLAYER TWO WINS";
-                winnerColor = new Color(50, 150, 255); // Stesso azzurro del cursore P2
+                winnerColor = new Color(50, 150, 255);
             }
 
-            // 3. Stampa la scritta della vittoria al centro
             g2d.setColor(winnerColor);
             setCustomFont(g2d, 70f);
             int textX = (SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(winnerText)) / 2;
             g2d.drawString(winnerText, textX, 250);
 
-            // 4. Scritta grigia per tornare al menu (uguale a Credits/Commands)
             g2d.setColor(Color.GRAY);
             setCustomFont(g2d, 25f);
             String returnText = "Press BLOCK to return to Menu";
