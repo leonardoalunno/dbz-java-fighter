@@ -31,6 +31,9 @@ public abstract class Fighter {
     protected boolean isTeleporting = false, isChargingAura = false, isAuraActive = false;
     protected boolean isWinner = false;
 
+    public float alpha = 1.0f; // 1.0 = solido, 0.0 = invisibile
+    public int teleportTimer = 0;
+
     protected int spriteCounter = 0, spriteNum = 1;
     protected int crouchTimer = 0, flyCooldown = 0, flyNum = 1;
     protected int attackTimer = 0, attackType = 0;
@@ -81,6 +84,8 @@ public abstract class Fighter {
     protected boolean isInvincible = false;
     protected int invincibleTimer = 0;
 
+    protected int blockTimer = 0;
+
     // --- VARIABILI DI RENDERING UNIVERSALI ---
     protected int srcX, srcY, srcW, srcH;
     protected int drawW, drawH, drawY, shiftX;
@@ -115,6 +120,7 @@ public abstract class Fighter {
 
         if (isBlocking) {
             hp -= Math.max(1, amount / 4);
+            blockTimer++;
         } else {
             hp -= amount;
             isHit = true;
@@ -122,6 +128,7 @@ public abstract class Fighter {
             isAttacking = false;
             isChargingAura = false;
             isTeleporting = false;
+            blockTimer = 0; // Resetta quando smetti di parare
         }
         if (hp < 0) hp = 0;
     }
@@ -143,7 +150,8 @@ public abstract class Fighter {
             isAttacking = false; isChargingAura = false; isAuraActive = false; isBlocking = false;
             if (y < groundY) { velocityY += gravity; y += (int) velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             endTimer++;
-            if (endTimer > 10) { if (endFrame < 6) endFrame++; endTimer = 0; }
+            // Cambiamo endFrame < 6 in endFrame < 7
+            if (endTimer > 10) { if (endFrame < 7) endFrame++; endTimer = 0; }
             return;
         }
 

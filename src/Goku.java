@@ -63,9 +63,21 @@ public class Goku extends Fighter {
 
     @Override
     protected void onSpecialAttackHit(Fighter opponent) {
+        // Posizioniamo l'esplosione al centro dell'avversario
         int expX = opponent.getX() + (opponent.baseWidth / 2);
         int expY = opponent.y + (opponent.baseHeight / 2);
-        opponent.activeEffects.add(new VisualEffect(spriteSheet, expX, expY, new int[]{458, 658}, new int[]{1034, 1034}, new int[]{142, 142}, new int[]{120, 120}, 6, 1.0 * scale));
+
+        // Aggiungiamo l'effetto fumo usando il nuovo file universale
+        opponent.activeEffects.add(new VisualEffect(
+                ResourceManager.getInstance().commonVfx, // Il nuovo file caricato
+                expX, expY,
+                new int[]{0, 200},   // X1 e X2 che mi hai dato
+                new int[]{0, 0},     // Y è sempre 0 per entrambi
+                new int[]{142, 142}, // Larghezza (W)
+                new int[]{120, 120}, // Altezza (H)
+                6,                   // Velocità dell'animazione
+                1.2 * scale          // Scala (leggermente più grande per il Final Flash)
+        ));
     }
 
     @Override
@@ -100,19 +112,55 @@ public class Goku extends Fighter {
         }
 
         if (hp <= 0) {
-            srcW = 90; srcH = 91; srcY = 1450; int[] koX = {187, 300, 400, 505, 600, 710}; srcX = koX[Math.min(endFrame - 1, 5)];
+            srcW = 90; srcH = 91; srcY = 1450;
+            // Aggiungiamo lo 0 come primo frame
+            int[] koX = {0, 187, 300, 400, 505, 600, 710};
+            srcX = koX[Math.min(endFrame - 1, 6)]; // Il limite dell'indice ora è 6
         }
         else if (isWinner) {
             if (isFlying) { srcW = 40; srcH = 100; srcY = 1642; int[] winFlyX = {0, 46}; srcX = winFlyX[endFrame - 1]; }
             else { srcW = 33; srcH = 90; srcY = 1649; int[] winGndX = {89, 128}; srcX = winGndX[endFrame - 1]; }
         }
         else if (isHit) {
-            srcW = 90; srcH = 91; srcY = 1450; srcX = 187;
+            // Entrambi i frame sono sulla riga del KO (1450)
+            srcY = 1450;
+            srcW = 90;
+            srcH = 91;
+
+            // hitTimer va da 1 a 20
+            if (hitTimer <= 10) {
+                srcX = 0;   // Frame 1: Colpo ricevuto (impatto secco)
+            } else {
+                srcX = 300; // Frame 2: Reazione al colpo (rinculo)
+            }
         }
-        else if (isChargingAura) { srcW = 78; srcH = 111; srcX = 0; srcY = 800; }
+        else if (isChargingAura) { srcW = 78; srcH = 111; srcX = 0; srcY = 800;
+            shiftX += (int)(Math.random() * 3) - 1; }
         else if (isBlocking) {
-            if (isFlying || isJumping) { srcW = 37; srcH = 87; srcX = 160; srcY = 2; }
-            else { srcW = 41; srcH = 78; srcX = 0; srcY = 972; }
+            // Usiamo i primi 5 frame per la preparazione (X=229)
+            if (blockTimer <= 5) {
+                // --- PREPARAZIONE (Comune a Terra e Aria) ---
+                srcW = 41;
+                srcH = 77;
+                srcX = 229;
+                srcY = 100;
+            }
+            else {
+                // Dopo la preparazione, passiamo alla posa fissa
+                if (isFlying || isJumping) {
+                    // --- PARATA IN ARIA / VOLO ---
+                    srcW = 31;
+                    srcH = 76;
+                    srcX = 277;
+                    srcY = 103;
+                } else {
+                    // --- PARATA A TERRA ---
+                    srcW = 43;
+                    srcH = 73;
+                    srcX = 11;
+                    srcY = 983;
+                }
+            }
         }
         else if (isTeleporting) { srcW = 30; srcH = 91; srcY = 1748; int[] tX = {3, 38, 72, 111, 147, 185}; srcX = tX[Math.min(teleportFrame - 1, 5)]; }
         else if (isAttacking) {

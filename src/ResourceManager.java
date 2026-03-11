@@ -35,6 +35,7 @@ public class ResourceManager {
 
     // --- EFFETTI VISIVI (VFX) ---
     public BufferedImage kiblastBlue, kiblastYellow, kiblastRed, kiblastGreen, kiblastPurple, kiblastGray;
+    public BufferedImage commonVfx;
 
     private ResourceManager() {
         loadImages();
@@ -112,6 +113,8 @@ public class ResourceManager {
             kiblastGreen = ImageIO.read(new File("assets/effects/kiblast_green.png"));
             kiblastPurple = ImageIO.read(new File("assets/effects/kiblast_purple.png"));
             kiblastGray = ImageIO.read(new File("assets/effects/kiblast_gray.png"));
+
+            commonVfx = ImageIO.read(new File("assets/effects/common_vfx.png"));
 
             System.out.println("Risorse caricate con successo!");
 

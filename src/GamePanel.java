@@ -3,6 +3,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Color;
+import java.awt.AlphaComposite;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -135,7 +136,7 @@ public class GamePanel extends JPanel implements Runnable {
     public Fighter createFighter(int cursorIndex, int x, int y, int playerID) {
         switch (cursorIndex) {
             case 0: return new Goku(x, y, playerID);
-            case 1: return new Goku(x, y, playerID); // return new Vegeta(x, y, playerID);
+            case 1: return new Vegeta(x, y, playerID);
             case 2: return new Goku(x, y, playerID); // return new FutureTrunks(x, y, playerID);
             case 3: return new Goku(x, y, playerID); // return new Broly(x, y, playerID);
             case 4: return new Goku(x, y, playerID); // return new SupremeKai(x, y, playerID);
