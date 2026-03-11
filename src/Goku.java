@@ -1,36 +1,18 @@
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.AlphaComposite;
 
 public class Goku extends Fighter {
 
-    private int spriteCounter = 0;
-    private int spriteNum = 1;
-    private int crouchTimer = 0;
-    private final int CROUCH_DURATION = 3;
-    private int flyCooldown = 0;
-    private int flyNum = 1;
-
-    private int attackTimer = 0;
-    private int attackType = 0;
-    private final int ATTACK_DURATION = 15;
-    private final int PUNCH_STARTUP = 5;
-    private final int KICK_STARTUP = 7;
-
-    private final int SPECIAL_CHARGE = 40;
-    private final int SPECIAL_DURATION = 90;
-    private int beamEndX = -1;
-
-    private boolean isWinner = false;
-    private int endFrame = 1;
-    private int endTimer = 0;
+    private int beamEndX = -1; // Variabile specifica per il raggio della Kamehameha
 
     public Goku(int x, int y, int playerID) {
         super(x, y, playerID, ResourceManager.getInstance().gokuSpriteSheet);
         this.groundY = y;
         this.facingRight = (playerID == 1);
         this.kiBlastImage = ResourceManager.getInstance().kiblastBlue;
+        this.hudSrcY = 0; // Coordinata della faccia nell'HUD!
 
-        // --- APPLICHIAMO LA SCALA 1.3 ---
         this.scale = 1.3;
         this.baseWidth = (int)(48 * scale);
         this.baseHeight = (int)(86 * scale);
@@ -50,9 +32,7 @@ public class Goku extends Fighter {
     public Rectangle getAttackHitbox() {
         if (!isAttacking) return null;
 
-        int reach = 0;
-        int boxHeight = (int)(20 * scale);
-        int offsetY = (int)(20 * scale);
+        int reach = 0, boxHeight = (int)(20 * scale), offsetY = (int)(20 * scale);
 
         if (attackType == 1 || attackType == 4) {
             reach = (int)(36 * scale); offsetY = (int)(15 * scale);
@@ -60,272 +40,82 @@ public class Goku extends Fighter {
             reach = (int)(30 * scale); offsetY = (int)(35 * scale);
         } else if (attackType == 6) {
             if (attackTimer <= SPECIAL_CHARGE) return null;
-            // KAMEHAMEHA SCALATA A TUTTO SCHERMO
-            reach = (int)(GamePanel.SCREEN_WIDTH * scale);
+            reach = (int)(GamePanel.SCREEN_WIDTH * scale); // Kamehameha a tutto schermo!
             boxHeight = (int)(40 * scale);
             offsetY = (int)(20 * scale);
-        } else {
-            return null;
-        }
+        } else return null;
 
         int hX = facingRight ? x + baseWidth : x - reach;
         int hY = y + offsetY;
         return new Rectangle(hX, hY, reach, boxHeight);
     }
 
+    // --- HOOKS: I superpoteri univoci di Goku! ---
+    @Override
+    protected void spawnKiBlastVFX() {
+        int handX = facingRight ? x + (int)(40 * scale) : x - (int)(10 * scale);
+        int handY = y + (int)(25 * scale);
+        activeEffects.add(new VisualEffect(kiBlastImage, handX, handY, new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60}, 7, 0.6 * scale));
+    }
+
+    @Override
+    protected void fireKiBlastProjectile() {
+        activeBlasts.add(new KiBlastProjectile(facingRight ? x + (int)(50 * scale) : x - (int)(10 * scale), y + (int)(25 * scale), facingRight, kiBlastImage, scale));
+    }
+
+    @Override
+    protected void onSpecialAttackHit(Fighter opponent) {
+        int expX = opponent.getX() + (opponent.baseWidth / 2);
+        int expY = opponent.y + (opponent.baseHeight / 2);
+        opponent.activeEffects.add(new VisualEffect(spriteSheet, expX, expY, new int[]{458, 658}, new int[]{1034, 1034}, new int[]{142, 142}, new int[]{120, 120}, 6, 1.0 * scale));
+    }
+
     @Override
     public void update(KeyHandler keyH, Fighter opponent) {
-        for (int i = 0; i < activeEffects.size(); i++) {
-            VisualEffect eff = activeEffects.get(i);
-            eff.update();
-            if (eff.isDead) { activeEffects.remove(i); i--; }
-        }
+        // 1. CHIAMIAMO LA CLASSE PADRE! Fa tutto lei: salti, aura, movimento, danni base.
+        super.update(keyH, opponent);
 
-        if (hp <= 0) {
-            isAttacking = false; isChargingAura = false; isAuraActive = false; isBlocking = false;
-            if (y < groundY) { velocityY += gravity; y += (int) velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
-            endTimer++;
-            if (endTimer > 10) { if (endFrame < 6) endFrame++; endTimer = 0; }
-            return;
-        }
-
-        if (opponent != null && opponent.hp <= 0) {
-            isWinner = true;
-            isAttacking = false; isChargingAura = false; isAuraActive = false; isBlocking = false;
-            if (!isFlying && y < groundY) { velocityY += gravity; y += (int) velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
-            endTimer++;
-            if (endTimer > 15) { endFrame = (endFrame == 1) ? 2 : 1; endTimer = 0; }
-            return;
-        } else isWinner = false;
-
-        isMoving = false;
-
-        boolean input_up = (playerID == 1) ? keyH.p1_up : keyH.p2_up;
-        boolean input_down = (playerID == 1) ? keyH.p1_down : keyH.p2_down;
-        boolean input_left = (playerID == 1) ? keyH.p1_left : keyH.p2_left;
-        boolean input_right = (playerID == 1) ? keyH.p1_right : keyH.p2_right;
-        boolean input_punch = (playerID == 1) ? keyH.p1_punch : keyH.p2_punch;
-        boolean input_kick = (playerID == 1) ? keyH.p1_kick : keyH.p2_kick;
-        boolean input_kiBlast = (playerID == 1) ? keyH.p1_kiBlast : keyH.p2_kiBlast;
-        boolean input_kamehameha = (playerID == 1) ? keyH.p1_kamehameha : keyH.p2_kamehameha;
-        boolean input_fly = (playerID == 1) ? keyH.p1_fly : keyH.p2_fly;
-        boolean input_aura = (playerID == 1) ? keyH.p1_aura : keyH.p2_aura;
-        boolean input_block = (playerID == 1) ? keyH.p1_block : keyH.p2_block;
-
-        if (!isAttacking && !isTeleporting && !isChargingAura && opponent != null) this.facingRight = (this.x <= opponent.getX());
-        if (input_block && !isAttacking && !isTeleporting && !isChargingAura) isBlocking = true; else isBlocking = false;
-
-        if (input_aura && auraEnergy >= MAX_AURA_ENERGY && !isAuraActive && !isChargingAura && !isAttacking && !isTeleporting && !isBlocking) {
-            isChargingAura = true; auraChargeTimer = 0; velocityY = 0;
-        }
-
-        if (isChargingAura) {
-            auraChargeTimer++;
-            if (auraChargeTimer >= AURA_CHARGE_DURATION) { isChargingAura = false; isAuraActive = true; }
-        }
-
-        if (isAuraActive) {
-            speed = (int)(8 * scale); jumpStrength = -15 * scale; auraEnergy -= AURA_DRAIN_RATE;
-            if (auraEnergy <= 0) { auraEnergy = 0; isAuraActive = false; }
-        } else {
-            speed = (int)(4 * scale); jumpStrength = -12 * scale;
-            if (auraEnergy < MAX_AURA_ENERGY && !isChargingAura) auraEnergy++;
-        }
-
-        if (kiShotsAvailable < MAX_KI_SHOTS) { kiRechargeTimer++; if (kiRechargeTimer >= RECHARGE_TIME) { kiShotsAvailable++; kiRechargeTimer = 0; } }
-        if (shotCooldown > 0) shotCooldown--;
-
-        if (isAttacking && attackType == 6) { specialEnergy -= specialDrainRate; if (specialEnergy < 0) specialEnergy = 0; }
-        else if (specialEnergy < MAX_SPECIAL_ENERGY) specialEnergy++;
-
-        if (tapTimerW > 0) tapTimerW--; if (tapTimerA > 0) tapTimerA--; if (tapTimerS > 0) tapTimerS--; if (tapTimerD > 0) tapTimerD--;
-
-        boolean newW = input_up && !prevW; boolean newA = input_left && !prevA;
-        boolean newS = input_down && !prevS; boolean newD = input_right && !prevD;
-
-        if (!isChargingAura && !isBlocking) {
-            if (!isTeleporting && !isAttacking) {
-                if (newA) { if (tapTimerA > 0) { startTeleport((int)(-DASH_DISTANCE * scale), 0, facingRight); tapTimerA = 0; } else tapTimerA = DOUBLE_TAP_WINDOW; }
-                if (newD) { if (tapTimerD > 0) { startTeleport((int)(DASH_DISTANCE * scale), 0, facingRight); tapTimerD = 0; } else tapTimerD = DOUBLE_TAP_WINDOW; }
-                if (newW) { if (tapTimerW > 0) { startTeleport(0, (int)(-DASH_DISTANCE * scale), facingRight); tapTimerW = 0; } else tapTimerW = DOUBLE_TAP_WINDOW; }
-                if (newS && isFlying) { if (tapTimerS > 0) { startTeleport(0, (int)(DASH_DISTANCE * scale), facingRight); tapTimerS = 0; } else tapTimerS = DOUBLE_TAP_WINDOW; }
-
-                if (!isFlying && !isJumping && !isCrouching) {
-                    if (input_punch) { isAttacking = true; attackTimer = 0; attackType = 1; }
-                    else if (input_kick) { isAttacking = true; attackTimer = 0; attackType = 2; }
-                } else if (isFlying) {
-                    if (input_kick) { isAttacking = true; attackTimer = 0; attackType = 3; }
-                    else if (input_punch) { isAttacking = true; attackTimer = 0; attackType = 4; }
-                }
-
-                if (input_kiBlast && kiShotsAvailable > 0 && shotCooldown == 0) {
-                    isAttacking = true; attackTimer = 0; attackType = 5;
-                    kiShotsAvailable--; shotCooldown = 30;
-
-                    int handX = facingRight ? x + (int)(40 * scale) : x - (int)(10 * scale);
-                    int handY = y + (int)(25 * scale);
-                    activeEffects.add(new VisualEffect(ResourceManager.getInstance().kiblastBlue,
-                            handX, handY, new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60}, 7, 0.6 * scale));
-                }
-
-                if (input_kamehameha && specialEnergy >= MAX_SPECIAL_ENERGY) { isAttacking = true; attackTimer = 0; attackType = 6; }
-            }
-
-            if (isAttacking) {
-                if (attackTimer == 0) hasHit = false;
-                attackTimer++;
-
-                if (attackType == 5 && attackTimer == 7) {
-                    activeBlasts.add(new KiBlastProjectile(facingRight ? x + (int)(50 * scale) : x - (int)(10 * scale), y + (int)(25 * scale), facingRight, ResourceManager.getInstance().kiblastBlue, scale));
-                }
-
-                if (attackType == 6 && attackTimer > SPECIAL_CHARGE) {
-                    // BEAM END A TUTTO SCHERMO 16:9
-                    beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
-                    Rectangle hitbox = getAttackHitbox();
-                    if (hitbox != null && opponent != null && hitbox.intersects(opponent.getBounds())) {
-                        beamEndX = facingRight ? opponent.getX() : opponent.getX() + opponent.baseWidth;
-                    }
-                }
-
-                if (!hasHit && opponent != null) {
-                    Rectangle hitbox = getAttackHitbox();
-                    if (hitbox != null && hitbox.intersects(opponent.getBounds())) {
-                        int damage = 0;
-                        if (attackType == 1 || attackType == 4) damage = punchDamage;
-                        else if (attackType == 2 || attackType == 3) damage = kickDamage;
-                        else if (attackType == 6) damage = specialDamage;
-
-                        if (damage > 0) {
-                            opponent.takeDamage(damage);
-                            hasHit = true;
-
-                            if (attackType == 6) {
-                                int expX = opponent.getX() + (opponent.baseWidth / 2);
-                                int expY = opponent.y + (opponent.baseHeight / 2);
-                                opponent.activeEffects.add(new VisualEffect(spriteSheet, expX, expY, new int[]{458, 658}, new int[]{1034, 1034}, new int[]{142, 142}, new int[]{120, 120}, 6, 1.0 * scale));
-                            }
-                        }
-                    }
-                }
-
-                int currentDuration = ATTACK_DURATION;
-                if (attackType == 6) currentDuration = SPECIAL_DURATION;
-                if (attackTimer >= currentDuration) { isAttacking = false; attackType = 0; }
-            }
-
-            for (int i = 0; i < activeBlasts.size(); i++) {
-                KiBlastProjectile blast = activeBlasts.get(i);
-                blast.update(activeEffects);
-
-                Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(10 * scale), (int)(40 * scale), (int)(20 * scale));
-
-                if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
-                    opponent.takeDamage(kiBlastDamage);
-
-                    int impactX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
-                    int impactY = opponent.y + (opponent.baseHeight / 2);
-
-                    opponent.activeEffects.add(new VisualEffect(blast.img,
-                            impactX, impactY,
-                            new int[]{260, 0, 86}, new int[]{135, 448, 448}, new int[]{126, 70, 70}, new int[]{109, 64, 64},
-                            new int[]{0, 0, 0}, new int[]{-40, -40, -40}, 6, 0.5 * scale));
-
-                    activeBlasts.remove(i); i--; continue;
-                }
-                if (blast.isDead) { activeBlasts.remove(i); i--; }
-            }
-
-            if (isTeleporting) {
-                teleportCounter++;
-                if (teleportCounter > 2) {
-                    teleportCounter = 0;
-                    if (teleportPhase == 1) {
-                        teleportFrame--;
-                        if (teleportFrame < 1) {
-                            x += targetOffsetX; y += targetOffsetY;
-                            if (y > groundY) y = groundY;
-                            if (isFlying && y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale);
-                            teleportPhase = 2; teleportFrame = 1;
-                        }
-                    } else if (teleportPhase == 2) {
-                        teleportFrame++;
-                        if (teleportFrame > 6) isTeleporting = false;
-                    }
-                }
-            } else {
-                if (flyCooldown > 0) flyCooldown--;
-                if (input_fly && flyCooldown == 0 && !isAttacking) {
-                    isFlying = !isFlying; flyCooldown = 20;
-                    if (isFlying) { velocityY = 0; isJumping = false; isCrouching = false; if (y >= groundY) y -= (int)(40 * scale); }
-                    else isJumping = true;
-                }
-
-                if (isFlying) {
-                    if (input_up) y -= speed;
-                    if (input_down) { y += speed; if (y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale); }
-                    if (!isAttacking) {
-                        if (input_left) { x -= speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x += speed; flyNum = facingRight ? 2 : 4; }
-                        else if (input_right) { x += speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x -= speed; flyNum = facingRight ? 4 : 2; }
-                        else flyNum = 1;
-                    } else {
-                        if (input_left) { x -= speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x += speed; }
-                        if (input_right) { x += speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x -= speed; }
-                    }
-                } else {
-                    if (!isCrouching && !isAttacking) {
-                        if (input_left) { x -= speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x += speed; isMoving = true; }
-                        if (input_right) { x += speed; if (opponent != null && this.getBounds().intersects(opponent.getBounds())) x -= speed; isMoving = true; }
-                    }
-                    if (input_up && !isJumping && !isCrouching && !isAttacking) { isCrouching = true; crouchTimer = 0; }
-                    if (isCrouching) { crouchTimer++; if (crouchTimer >= CROUCH_DURATION) { isCrouching = false; isJumping = true; velocityY = jumpStrength; } }
-                    if (isJumping) { velocityY += gravity; y += (int) velocityY; }
-                }
-
-                if (y >= groundY) { y = groundY; velocityY = 0; isJumping = false; isFlying = false; }
-                if (y < 0) { y = 0; velocityY = 0; }
-                if (x < 0) x = 0;
-
-                // LIMITE LATERALE CORRETTO PER 16:9
-                if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
-
-                if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
-                    spriteCounter++;
-                    if (spriteCounter > (isAuraActive ? 3 : 5)) { spriteNum++; if (spriteNum > 3) spriteNum = 1; spriteCounter = 0; }
-                } else spriteNum = 1;
-            }
-        } else {
-            if (!isFlying && y < groundY) {
-                isJumping = true; velocityY += gravity; y += (int) velocityY;
-                if (y >= groundY) { y = groundY; velocityY = 0; isJumping = false; }
+        // 2. Logica Specifica: Calcolo dell'estensione del raggio della Kamehameha
+        if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
+            beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
+            Rectangle hitbox = getAttackHitbox();
+            if (hitbox != null && opponent != null && hitbox.intersects(opponent.getBounds())) {
+                beamEndX = facingRight ? opponent.getX() : opponent.getX() + opponent.baseWidth;
             }
         }
-        prevW = input_up; prevA = input_left; prevS = input_down; prevD = input_right;
+
+        // 3. Logica Specifica: Avanzamento dei frame dell'animazione (solo quando cammina)
+        if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
+            spriteCounter++;
+            if (spriteCounter > (isAuraActive ? 3 : 5)) { spriteNum++; if (spriteNum > 3) spriteNum = 1; spriteCounter = 0; }
+        } else spriteNum = 1;
     }
 
     @Override
     public void draw(Graphics2D g2d) {
-        // Nuova struttura iper-pulita: Dichiariamo i frame sorgenti, calcoliamo la scala SOLO alla fine!
         int srcX = 33, srcY = 0, srcW = 48, srcH = 86;
 
         if (isAuraActive && !isChargingAura) {
             int auraSrcX = 200, auraSrcY = 800, auraSrcW = 78, auraSrcH = 111;
             double auraScale = 1.25 * scale;
-            int drawAuraW = (int)(auraSrcW * auraScale);
-            int drawAuraH = (int)(auraSrcH * auraScale);
-            int drawAuraX = x + (baseWidth - drawAuraW) / 2;
-            int drawAuraY = y - (drawAuraH - baseHeight);
+            int drawAuraW = (int)(auraSrcW * auraScale), drawAuraH = (int)(auraSrcH * auraScale);
+            int drawAuraX = x + (baseWidth - drawAuraW) / 2, drawAuraY = y - (drawAuraH - baseHeight);
             g2d.drawImage(spriteSheet, facingRight ? drawAuraX : drawAuraX + drawAuraW, drawAuraY, facingRight ? drawAuraX + drawAuraW : drawAuraX, drawAuraY + drawAuraH, auraSrcX, auraSrcY, auraSrcX + auraSrcW, auraSrcY + auraSrcH, null);
         }
 
         if (hp <= 0) {
-            srcW = 90; srcH = 91; srcY = 1450;
-            int[] koX = {187, 300, 400, 505, 600, 710};
-            srcX = koX[Math.min(endFrame - 1, 5)];
+            srcW = 90; srcH = 91; srcY = 1450; int[] koX = {187, 300, 400, 505, 600, 710}; srcX = koX[Math.min(endFrame - 1, 5)];
         }
         else if (isWinner) {
             if (isFlying) { srcW = 40; srcH = 100; srcY = 1642; int[] winFlyX = {0, 46}; srcX = winFlyX[endFrame - 1]; }
             else { srcW = 33; srcH = 90; srcY = 1649; int[] winGndX = {89, 128}; srcX = winGndX[endFrame - 1]; }
+        }
+        else if (isHit) {
+            // Primo frame dell'animazione di KO
+            srcW = 90;
+            srcH = 91;
+            srcY = 1450;
+            srcX = 187;
         }
         else if (isChargingAura) { srcW = 78; srcH = 111; srcX = 0; srcY = 800; }
         else if (isBlocking) {
@@ -355,25 +145,29 @@ public class Goku extends Fighter {
             if (spriteNum == 1) { srcX = 0; srcY = 87; } else if (spriteNum == 2) { srcX = 55; srcY = 85; } else if (spriteNum == 3) { srcX = 103; srcY = 87; }
         }
 
-        // --- CALCOLO FINALE UNIVERSALE DELLE DIMENSIONI ---
-        int drawW = (int)(srcW * scale);
-        int drawH = (int)(srcH * scale);
-        int drawY = y - (drawH - baseHeight);
+        int drawW = (int)(srcW * scale), drawH = (int)(srcH * scale), drawY = y - (drawH - baseHeight);
         int shiftX = (baseWidth - drawW) / 2;
         if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
 
-        // --- DISEGNO GOKU ---
+        // --- EFFETTO LAMPEGGIO INVINCIBILITÀ ---
+        if (isInvincible && invincibleTimer % 10 < 5) {
+            // Rende il personaggio semi-trasparente
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+        }
+
+        // DISEGNO GOKU
         int sX1 = x + shiftX, sX2 = sX1 + drawW;
         if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
         g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
 
-        // --- DISEGNO KAMEHAMEHA BEAM (Sopra Goku) ---
+        // RIPRISTINA L'OPACITÀ NORMALE SUBITO DOPO
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+
+        // DISEGNO KAMEHAMEHA
         if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
             int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64, headSrcX = 339, headSrcY = 1069, headW = 86, headH = 64;
             int drawBodyH = (int)(bodyH * scale), drawHeadW = (int)(headW * scale), drawHeadH = (int)(headH * scale);
             int beamY = drawY + (int)(6 * scale);
-
-            // RENDERING DEL RAGGIO A TUTTO SCHERMO
             int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? GamePanel.SCREEN_WIDTH : 0);
 
             if (facingRight) {
@@ -381,21 +175,16 @@ public class Goku extends Fighter {
                 if (targetX - drawHeadW > startX) {
                     g2d.drawImage(spriteSheet, startX, beamY, targetX - drawHeadW, beamY + drawBodyH, bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
                     g2d.drawImage(spriteSheet, targetX - drawHeadW, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                } else {
-                    g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                }
+                } else g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
             } else {
                 int startX = x + shiftX;
                 if (targetX + drawHeadW < startX) {
                     g2d.drawImage(spriteSheet, startX, beamY, targetX + drawHeadW, beamY + drawBodyH, bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
                     g2d.drawImage(spriteSheet, targetX + drawHeadW, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                } else {
-                    g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                }
+                } else g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
             }
         }
 
-        // --- DISEGNO EFFETTI E KIBLAST ---
         for (VisualEffect eff : activeEffects) eff.draw(g2d);
         for (KiBlastProjectile blast : activeBlasts) blast.draw(g2d);
 
