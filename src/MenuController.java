@@ -65,10 +65,15 @@ public class MenuController {
             gp.p2Ready = false; gp.menuCooldown = gp.COOLDOWN_TIME;
         }
 
-        // Entrambi pronti
+        // Se entrambi sono pronti, facciamo una breve pausa prima di cambiare scena!
         if (gp.p1Ready && gp.p2Ready) {
-            gp.gameState = 3;
-            gp.menuCooldown = 20;
+            gp.stateTimer++;
+            if (gp.stateTimer > 45) { // 45 frame = 0.75 secondi di attesa (abbastanza per leggere)
+                gp.gameState = 3;     // Passa allo Stage Select
+                gp.stateTimer = 0;    // Resetta il timer per la prossima schermata
+            }
+        } else {
+            gp.stateTimer = 0; // Se qualcuno annulla la selezione, il timer si azzera
         }
     }
 

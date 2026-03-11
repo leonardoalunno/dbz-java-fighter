@@ -8,7 +8,7 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
 
             // Creiamo la finestra
-            JFrame window = new JFrame("Dragon Ball Z: Super Butōden 3 - Progetto d'Esame");
+            JFrame window = new JFrame("Dragon Ball Z - Exam Project");
 
             // Diciamo al programma di chiudersi quando premiamo la X
             window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

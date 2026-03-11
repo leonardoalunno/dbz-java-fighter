@@ -129,16 +129,38 @@ public class UIManager {
         }
 
         g2d.setStroke(new BasicStroke(5));
+
+        // --- DISEGNO CURSORE E SCRITTA P1 ---
         g2d.setColor(Color.RED);
         int p1X = startX + (gp.p1Cursor * spacing);
         g2d.drawRect(p1X - 6, startY - 6, size + 12, size + 12);
-        if(gp.p1Ready) { setBangersFont(g2d, 32f); g2d.drawString("P1 READY", p1X + (size / 2) - (g2d.getFontMetrics().stringWidth("P1 READY") / 2), startY - 20); }
 
+        if(gp.p1Ready) {
+            setBangersFont(g2d, 32f);
+            g2d.drawString("P1 READY", p1X + (size / 2) - (g2d.getFontMetrics().stringWidth("P1 READY") / 2), startY - 20);
+        }
+
+        // --- DISEGNO CURSORE E SCRITTA P2 ---
         g2d.setColor(new Color(50, 150, 255));
         int p2X = startX + (gp.p2Cursor * spacing);
-        if (gp.p1Cursor == gp.p2Cursor) g2d.drawRect(p2X - 12, startY - 12, size + 24, size + 24);
-        else g2d.drawRect(p2X - 6, startY - 6, size + 12, size + 12);
-        if(gp.p2Ready) { setBangersFont(g2d, 32f); g2d.drawString("P2 READY", p2X + (size / 2) - (g2d.getFontMetrics().stringWidth("P2 READY") / 2), startY - 20); }
+
+        if (gp.p1Cursor == gp.p2Cursor) {
+            g2d.drawRect(p2X - 12, startY - 12, size + 24, size + 24);
+        } else {
+            g2d.drawRect(p2X - 6, startY - 6, size + 12, size + 12);
+        }
+
+        if(gp.p2Ready) {
+            setBangersFont(g2d, 32f);
+            int p2ReadyY = startY - 20;
+
+            // TRUCCO: Se P1 e P2 hanno scelto lo stesso personaggio, alziamo la scritta P2 di 35 pixel!
+            if (gp.p1Cursor == gp.p2Cursor) {
+                p2ReadyY -= 35;
+            }
+
+            g2d.drawString("P2 READY", p2X + (size / 2) - (g2d.getFontMetrics().stringWidth("P2 READY") / 2), p2ReadyY);
+        }
     }
 
     private void drawStageMenu(Graphics2D g2d) {
