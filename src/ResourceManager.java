@@ -21,10 +21,10 @@ public class ResourceManager {
     // --- ICONE PERSONAGGI ---
     public BufferedImage iconGoku, iconVegeta, iconFutureTrunks, iconSupremeKai, iconBroly;
 
-    // --- RISORSE STAGE ---
-    public BufferedImage canyonSky, canyonFloor, canyonIcon;
-    public BufferedImage tournamentDaySky, tournamentDayFloor, tournamentDayIcon;
-    public BufferedImage tournamentSunsetSky, tournamentSunsetFloor, tournamentSunsetIcon;
+    // --- RISORSE STAGE (Aggiornate per 16:9 con file unico bg.png) ---
+    public BufferedImage canyonBg, canyonIcon;
+    public BufferedImage tournamentDayBg, tournamentDayIcon;
+    public BufferedImage tournamentSunsetBg, tournamentSunsetIcon;
 
     // --- MENU E UI ---
     public BufferedImage splashLogo, dbzLogo, fightIcon, koIcon, load1, load2;
@@ -79,15 +79,14 @@ public class ResourceManager {
             iconSupremeKai = ImageIO.read(new File("assets/characters/characters_icons/icon_supreme_kai.png"));
             iconBroly = ImageIO.read(new File("assets/characters/characters_icons/icon_broly.png"));
 
-            // 3. CARICAMENTO DEI 3 STAGE
-            canyonSky = ImageIO.read(new File("assets/stages/canyon_sunset/sky.png"));
-            canyonFloor = ImageIO.read(new File("assets/stages/canyon_sunset/floor.png"));
+            // 3. CARICAMENTO DEI 3 STAGE (Unificato sky e floor in bg.png)
+            canyonBg = ImageIO.read(new File("assets/stages/canyon_sunset/bg.png"));
             canyonIcon = ImageIO.read(new File("assets/stages/canyon_sunset/icon.png"));
-            tournamentDaySky = ImageIO.read(new File("assets/stages/tournament_day/sky.png"));
-            tournamentDayFloor = ImageIO.read(new File("assets/stages/tournament_day/floor.png"));
+
+            tournamentDayBg = ImageIO.read(new File("assets/stages/tournament_day/bg.png"));
             tournamentDayIcon = ImageIO.read(new File("assets/stages/tournament_day/icon.png"));
-            tournamentSunsetSky = ImageIO.read(new File("assets/stages/tournament_sunset/sky.png"));
-            tournamentSunsetFloor = ImageIO.read(new File("assets/stages/tournament_sunset/floor.png"));
+
+            tournamentSunsetBg = ImageIO.read(new File("assets/stages/tournament_sunset/bg.png"));
             tournamentSunsetIcon = ImageIO.read(new File("assets/stages/tournament_sunset/icon.png"));
 
             // 4. CARICAMENTO MENU E UI ORIGINALI

@@ -60,7 +60,8 @@ public class Goku extends Fighter {
             reach = (int)(30 * scale); offsetY = (int)(35 * scale);
         } else if (attackType == 6) {
             if (attackTimer <= SPECIAL_CHARGE) return null;
-            reach = (int)(800 * scale);
+            // KAMEHAMEHA SCALATA A TUTTO SCHERMO
+            reach = (int)(GamePanel.SCREEN_WIDTH * scale);
             boxHeight = (int)(40 * scale);
             offsetY = (int)(20 * scale);
         } else {
@@ -179,7 +180,8 @@ public class Goku extends Fighter {
                 }
 
                 if (attackType == 6 && attackTimer > SPECIAL_CHARGE) {
-                    beamEndX = facingRight ? 800 : 0;
+                    // BEAM END A TUTTO SCHERMO 16:9
+                    beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
                     Rectangle hitbox = getAttackHitbox();
                     if (hitbox != null && opponent != null && hitbox.intersects(opponent.getBounds())) {
                         beamEndX = facingRight ? opponent.getX() : opponent.getX() + opponent.baseWidth;
@@ -283,7 +285,9 @@ public class Goku extends Fighter {
                 if (y >= groundY) { y = groundY; velocityY = 0; isJumping = false; isFlying = false; }
                 if (y < 0) { y = 0; velocityY = 0; }
                 if (x < 0) x = 0;
-                if (x > 800 - baseWidth) x = 800 - baseWidth;
+
+                // LIMITE LATERALE CORRETTO PER 16:9
+                if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
 
                 if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
                     spriteCounter++;
@@ -351,7 +355,7 @@ public class Goku extends Fighter {
             if (spriteNum == 1) { srcX = 0; srcY = 87; } else if (spriteNum == 2) { srcX = 55; srcY = 85; } else if (spriteNum == 3) { srcX = 103; srcY = 87; }
         }
 
-        // --- CALCOLO FINALE UNIVERSALE DELLE DIMENSIONI (Tutto Scalato x1.3!) ---
+        // --- CALCOLO FINALE UNIVERSALE DELLE DIMENSIONI ---
         int drawW = (int)(srcW * scale);
         int drawH = (int)(srcH * scale);
         int drawY = y - (drawH - baseHeight);
@@ -368,7 +372,9 @@ public class Goku extends Fighter {
             int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64, headSrcX = 339, headSrcY = 1069, headW = 86, headH = 64;
             int drawBodyH = (int)(bodyH * scale), drawHeadW = (int)(headW * scale), drawHeadH = (int)(headH * scale);
             int beamY = drawY + (int)(6 * scale);
-            int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? 800 : 0);
+
+            // RENDERING DEL RAGGIO A TUTTO SCHERMO
+            int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? GamePanel.SCREEN_WIDTH : 0);
 
             if (facingRight) {
                 int startX = x + shiftX + drawW;

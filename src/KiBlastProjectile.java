@@ -39,7 +39,8 @@ public class KiBlastProjectile {
                     trailX, py, new int[]{391}, new int[]{133}, new int[]{61}, new int[]{62}, 4, 0.25 * pScaleMultiplier));
         }
 
-        if (px > 1000 || px < -100) {
+        // LIMITE AGGIORNATO PER IL 16:9 - Il KiBlast muore solo quando esce davvero dallo schermo!
+        if (px > GamePanel.SCREEN_WIDTH + 100 || px < -100) {
             isDead = true;
         }
     }

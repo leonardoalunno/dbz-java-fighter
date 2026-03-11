@@ -12,6 +12,8 @@ public abstract class Fighter {
     protected BufferedImage spriteSheet;
     protected BufferedImage kiBlastImage; // L'immagine specifica dei Ki Blast per l'HUD
 
+    protected int hudSrcY = 0; // Indica a quale altezza si trova l'HUD del personaggio
+
     public double scale = 1.0; // NUOVA VARIABILE UNIVERSALE PER SCALARE I PERSONAGGI!
 
     public int hp = 100;
@@ -130,16 +132,18 @@ public abstract class Fighter {
         ResourceManager resM = ResourceManager.getInstance();
 
         if (resM.hudFull != null) {
-            double uiScale = 0.25;
-            int hSrcX = 0, hSrcY = 0, hSrcW = 1142, hSrcH = 410;
+            // SCALA AUMENTATA: 0.35 invece di 0.25 per riempire meglio il 16:9
+            double uiScale = 0.35;
+            int hSrcX = 0, hSrcW = 1142, hSrcH = 410;
             int hDrawW = (int)(hSrcW * uiScale);
             int hDrawH = (int)(hSrcH * uiScale);
 
-            int hX = (playerID == 1) ? 20 : 800 - hDrawW - 20;
+            // SIMMETRIA CORRETTA: Uso GamePanel.SCREEN_WIDTH invece del vecchio 800
+            int hX = (playerID == 1) ? 20 : GamePanel.SCREEN_WIDTH - hDrawW - 20;
             int hY = 20;
 
             if (resM.saiyanFont != null) {
-                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 22f));
+                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 26f)); // Font leggermente più grande
                 String pText = (playerID == 1) ? "PLAYER ONE" : "PLAYER TWO";
 
                 g2d.setColor((playerID == 1) ? Color.RED : new Color(50, 150, 255));
@@ -178,7 +182,7 @@ public abstract class Fighter {
             g2d.fillRect(sBarX, sBarY, currentSW, sBarH);
 
             double aPercent = auraEnergy / MAX_AURA_ENERGY;
-            int aBarW = (int)(325 * uiScale);
+            int aBarW = (int)(330 * uiScale);
             int aBarH = (int)(68 * uiScale);
             int currentAW = (int) (aBarW * aPercent);
 
@@ -191,7 +195,7 @@ public abstract class Fighter {
             if (resM.saiyanFont != null) {
                 int labelMargin = 10;
 
-                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 20f));
+                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 24f)); // Aumentato
                 String hpLabel = "HP";
                 int hpLabelX = (playerID == 1) ? hX + (int)(272 * uiScale) + hBarW + labelMargin
                         : (hX + hDrawW - (int)(272 * uiScale) - hBarW) - g2d.getFontMetrics().stringWidth(hpLabel) - labelMargin;
@@ -201,7 +205,7 @@ public abstract class Fighter {
                 else g2d.setColor(Color.RED);
                 g2d.drawString(hpLabel, hpLabelX, hY + (int)(175 * uiScale));
 
-                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 16f));
+                g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 20f)); // Aumentato
                 int specLabelX = (playerID == 1) ? hX + (int)(292 * uiScale) + sBarW + labelMargin
                         : (hX + hDrawW - (int)(292 * uiScale) - sBarW) - g2d.getFontMetrics().stringWidth(specialName) - labelMargin;
                 g2d.setColor(Color.CYAN);
@@ -214,21 +218,24 @@ public abstract class Fighter {
                 g2d.drawString(auraLabel, auraLabelX, hY + (int)(358 * uiScale));
             }
 
+            // --- DISEGNO DELL'HUD DEL PERSONAGGIO (Con simmetria per P2 e crop dinamico) ---
             if (playerID == 1) {
-                g2d.drawImage(resM.hudFull, hX, hY, hX + hDrawW, hY + hDrawH, hSrcX, hSrcY, hSrcX + hSrcW, hSrcY + hSrcH, null);
+                // P1: Disegna normale usando la Y specifica del personaggio (hudSrcY)
+                g2d.drawImage(resM.hudFull, hX, hY, hX + hDrawW, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
             } else {
-                g2d.drawImage(resM.hudFull, hX + hDrawW, hY, hX, hY + hDrawH, hSrcX, hSrcY, hSrcX + hSrcW, hSrcY + hSrcH, null);
+                // P2: Disegna specchiato orizzontalmente usando la Y specifica del personaggio (hudSrcY)
+                g2d.drawImage(resM.hudFull, hX + hDrawW, hY, hX, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
             }
 
-            // 3. ICONE KI BLAST NELL'HUD
+            // 3. ICONE KI BLAST NELL'HUD (Scalate per 16:9)
             if (kiBlastImage != null && resM.kiblastGray != null) {
-                int iW = 26, iH = 13;
-                int iSpacing = iW + 5;
-                int totalIconsWidth = (MAX_KI_SHOTS * iW) + ((MAX_KI_SHOTS - 1) * 5);
+                int iW = 36, iH = 18; // Icone più grandi
+                int iSpacing = iW + 8;
+                int totalIconsWidth = (MAX_KI_SHOTS * iW) + ((MAX_KI_SHOTS - 1) * 8);
 
                 int iStartX = (playerID == 1) ? hX + (int)(272 * uiScale)
                         : (hX + hDrawW) - (int)(272 * uiScale) - totalIconsWidth;
-                int iStartY = hY + hDrawH + 5;
+                int iStartY = hY + hDrawH + 8;
 
                 for(int i = 0; i < MAX_KI_SHOTS; i++) {
                     int renderIndex = (playerID == 1) ? i : (MAX_KI_SHOTS - 1 - i);
@@ -239,12 +246,8 @@ public abstract class Fighter {
                     if (playerID == 2) { int temp = dX1; dX1 = dX2; dX2 = temp; }
 
                     if (i < kiShotsAvailable) {
-                        // COLPO CARICO (Usa l'immagine colorata del personaggio)
-                        // Il frame colorato era in X=3, Y=3, W=253, H=124
                         g2d.drawImage(kiBlastImage, dX1, iStartY, dX2, iStartY + iH, 3, 3, 3 + 253, 3 + 124, null);
                     } else {
-                        // COLPO SCARICO (Usa l'immagine grigia universale)
-                        // Se kiblast_gray.png è solo l'icona ritagliata, parte da 0,0
                         g2d.drawImage(resM.kiblastGray, dX1, iStartY, dX2, iStartY + iH, 0, 0, 253, 124, null);
                     }
                 }
