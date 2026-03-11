@@ -19,8 +19,8 @@ public class GamePanel extends JPanel implements Runnable {
     public UIManager uiManager;
     public MenuController menuController;
 
-    // --- VARIABILI DI STATO PUBBLICHE (Per farle leggere al Controller e UI) ---
-    public int gameState = -1; // -1: Splash, 0: Loading, 1: Main Menu...
+    // --- VARIABILI DI STATO PUBBLICHE ---
+    public int gameState = -1;
     public int stateTimer = 0;
     public int mainMenuOption = 0;
     public int loadSpriteFrame = 1;
@@ -38,6 +38,10 @@ public class GamePanel extends JPanel implements Runnable {
 
     public Fighter player1, player2;
 
+    // --- NUOVE VARIABILI SCREEN SHAKE ---
+    public int shakeTimer = 0;
+    public int shakeMagnitude = 0;
+
     public GamePanel() {
         this.setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
         this.setBackground(Color.BLACK);
@@ -45,7 +49,6 @@ public class GamePanel extends JPanel implements Runnable {
         this.addKeyListener(keyH);
         this.setFocusable(true);
 
-        // Inizializziamo i nostri Manager
         uiManager = new UIManager(this);
         menuController = new MenuController(this);
     }
@@ -53,6 +56,12 @@ public class GamePanel extends JPanel implements Runnable {
     public void startGameThread() {
         gameThread = new Thread(this);
         gameThread.start();
+    }
+
+    // Metodo helper per innescare il terremoto
+    public void startShake(int duration, int magnitude) {
+        this.shakeTimer = duration;
+        this.shakeMagnitude = magnitude;
     }
 
     @Override
@@ -75,6 +84,9 @@ public class GamePanel extends JPanel implements Runnable {
     public void update() {
         if (menuCooldown > 0) menuCooldown--;
 
+        // --- DECREMENTO DELLO SHAKE ---
+        if (shakeTimer > 0) shakeTimer--;
+
         switch(gameState) {
             case -1: // SPLASH SCREEN
                 stateTimer++;
@@ -87,16 +99,11 @@ public class GamePanel extends JPanel implements Runnable {
                 if (stateTimer > 180) { gameState = 1; stateTimer = 0; }
                 break;
 
-            case 1: // MAIN MENU
-            case 2: // CHAR SELECT
-            case 3: // STAGE SELECT
-            case 6: // COMMANDS
-            case 7: // CREDITS
-                // IL MENU CONTROLLER GESTISCE TUTTI GLI INPUT DEL MENU!
+            case 1: case 2: case 3: case 6: case 7: // MENU VARI
                 menuController.updateMenus();
                 break;
 
-            case 4: // VS SCREEN (Transizione Automatica)
+            case 4: // VS SCREEN
                 stateTimer++;
                 if (stateTimer > 180) { gameState = 5; battlePhase = 0; stateTimer = 0; }
                 break;
@@ -111,6 +118,16 @@ public class GamePanel extends JPanel implements Runnable {
                 if (battlePhase >= 2 && player1 != null && player2 != null) {
                     player1.update(keyH, player2);
                     player2.update(keyH, player1);
+
+                    // --- TRUCCO: LEGGIAMO L'IMPATTO PER GENERARE LO SHAKE! ---
+                    // Se un giocatore viene colpito (hitTimer = 1 è il primo frame dell'impatto)
+                    // La magnitudo dipende dalla violenza del Knockback!
+                    if (player1.isHit && player1.hitTimer == 1) {
+                        startShake(12, Math.max(2, player1.knockbackSpeed / 2));
+                    }
+                    if (player2.isHit && player2.hitTimer == 1) {
+                        startShake(12, Math.max(2, player2.knockbackSpeed / 2));
+                    }
                 }
 
                 if (battlePhase == 2) {
@@ -132,7 +149,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // --- FACTORY UNIVERSALE PER I PERSONAGGI ---
     public Fighter createFighter(int cursorIndex, int x, int y, int playerID) {
         switch (cursorIndex) {
             case 0: return new Goku(x, y, playerID);
@@ -160,8 +176,27 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        // Tutta la grafica è stata delegata allo UIManager!
+        // --- APPLICAZIONE DELLO SCREEN SHAKE ALLA TELECAMERA ---
+        int currentShakeX = 0;
+        int currentShakeY = 0;
+
+        if (shakeTimer > 0) {
+            // Generiamo un offset casuale tra -magnitude e +magnitude
+            currentShakeX = (int)(Math.random() * shakeMagnitude * 2) - shakeMagnitude;
+            currentShakeY = (int)(Math.random() * shakeMagnitude * 2) - shakeMagnitude;
+
+            // Spostiamo letteralmente tutta la tela del gioco (Personaggi, Sfondo, HUD)!
+            g2d.translate(currentShakeX, currentShakeY);
+        }
+
+        // Disegniamo tutto tramite lo UIManager
         uiManager.draw(g2d);
+
+        // --- RIPRISTINO TELECAMERA ---
+        if (shakeTimer > 0) {
+            // Se non lo riportiamo indietro, al frame successivo il gioco si "rompe" traslando all'infinito
+            g2d.translate(-currentShakeX, -currentShakeY);
+        }
 
         g2d.dispose();
     }

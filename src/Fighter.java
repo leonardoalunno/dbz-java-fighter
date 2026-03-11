@@ -13,8 +13,8 @@ public abstract class Fighter {
     protected BufferedImage spriteSheet;
     protected BufferedImage kiBlastImage;
     protected BufferedImage auraImage;
-    protected int auraFrame = 0;     // Per gestire i 4 frame dell'animazione
-    protected int auraAnimTimer = 0; // Timer per la velocità dell'animazione
+    protected int auraFrame = 0;
+    protected int auraAnimTimer = 0;
 
     protected int hudSrcY = 0;
     public double scale = 1.0;
@@ -28,13 +28,16 @@ public abstract class Fighter {
     protected boolean facingRight;
     protected int groundY;
 
+    public int knockbackSpeed = 0; // Velocità dinamica di scivolamento all'indietro
+    protected int customOffsetX = 0; // Aggiunto correttore sprite per animazioni decentrate
+
     // --- VARIABILI DI STATO ---
     protected boolean isMoving = false, isJumping = false, isCrouching = false;
     protected boolean isFlying = false, isBlocking = false, isAttacking = false;
     protected boolean isTeleporting = false, isChargingAura = false, isAuraActive = false;
     protected boolean isWinner = false;
 
-    public float alpha = 1.0f; // 1.0 = solido, 0.0 = invisibile
+    public float alpha = 1.0f;
     public int teleportTimer = 0;
 
     protected int spriteCounter = 0, spriteNum = 1;
@@ -113,25 +116,29 @@ public abstract class Fighter {
     public abstract Rectangle getAttackHitbox();
     public abstract void draw(Graphics2D g2d);
 
-    // --- METODI HOOK ASTRATTI PER EFFETTI VISIVI SPECIFICI DEL PERSONAGGIO ---
+    // --- METODI HOOK ASTRATTI ---
     protected abstract void spawnKiBlastVFX();
     protected abstract void fireKiBlastProjectile();
     protected abstract void onSpecialAttackHit(Fighter opponent);
 
-    public void takeDamage(int amount) {
+    // --- MODIFICATO: Ora riceve anche la forza di sbalzo (Knockback) ---
+    public void takeDamage(int amount, int appliedKnockback) {
         if (isInvincible) return;
 
         if (isBlocking) {
             hp -= Math.max(1, amount / 4);
             blockTimer++;
+            // Se sta parando, scivola all'indietro ma con 1/3 della forza!
+            this.knockbackSpeed = appliedKnockback / 3;
         } else {
             hp -= amount;
             isHit = true;
             hitTimer = 0;
+            this.knockbackSpeed = appliedKnockback; // Sbalzo in pieno
             isAttacking = false;
             isChargingAura = false;
             isTeleporting = false;
-            blockTimer = 0; // Resetta quando smetti di parare
+            blockTimer = 0;
         }
         if (hp < 0) hp = 0;
     }
@@ -153,7 +160,6 @@ public abstract class Fighter {
             isAttacking = false; isChargingAura = false; isAuraActive = false; isBlocking = false;
             if (y < groundY) { velocityY += gravity; y += (int) velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             endTimer++;
-            // Cambiamo endFrame < 6 in endFrame < 7
             if (endTimer > 10) { if (endFrame < 7) endFrame++; endTimer = 0; }
             return;
         }
@@ -167,13 +173,23 @@ public abstract class Fighter {
             return;
         } else isWinner = false;
 
+        // --- NUOVO SISTEMA DI RINCULO FISICO CON ATTRITO ---
+        if (knockbackSpeed > 0) {
+            // Se guardo a destra, il colpo arriva da davanti a me, quindi scivolo a sinistra (-)
+            x += facingRight ? -knockbackSpeed : knockbackSpeed;
+
+            // Attrito: rallenta la scivolata di 2 pixel ogni frame
+            knockbackSpeed -= 2;
+
+            // Confini dello schermo durante il volo all'indietro
+            if (x < 0) x = 0;
+            if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
+        } else {
+            knockbackSpeed = 0;
+        }
+
         if (isHit) {
             hitTimer++;
-            if (hitTimer < 5) {
-                x += facingRight ? -(int)(4 * scale) : (int)(4 * scale);
-                if (x < 0) x = 0;
-                if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
-            }
             if (hitTimer > 20) {
                 isHit = false;
                 isInvincible = true;
@@ -211,13 +227,8 @@ public abstract class Fighter {
             if (auraChargeTimer >= AURA_CHARGE_DURATION) {
                 isChargingAura = false;
                 isAuraActive = true;
-
-                // --- NUOVA MECCANICA: HEALING DELL'AURA! 💊 ---
                 hp += 25;
-                // Controllo di sicurezza: non superare mai la barra massima!
-                if (hp > maxHP) {
-                    hp = maxHP;
-                }
+                if (hp > maxHP) hp = maxHP;
             }
         }
         if (isAuraActive) {
@@ -227,7 +238,7 @@ public abstract class Fighter {
             speed = (int)(4 * scale); jumpStrength = -12 * scale;
             if (auraEnergy < MAX_AURA_ENERGY && !isChargingAura) auraEnergy++;
         }
-        // --- LOGICA ANIMAZIONE AURA UNIVERSALE E SCINTILLE ---
+
         if (isChargingAura || isAuraActive) {
             auraAnimTimer++;
             if (auraAnimTimer > 4) {
@@ -236,24 +247,14 @@ public abstract class Fighter {
                 auraAnimTimer = 0;
             }
 
-            // --- NUOVO: SPAWN CASUALE DELLE SCINTILLE ---
-            // Math.random() < 0.15 significa che c'è il 15% di probabilità a ogni "tick" di creare una scintilla
             if (auraImage != null && Math.random() < 0.15) {
-                // Calcoliamo una posizione X e Y casuale intorno al corpo del personaggio
                 int randomX = x + (int)(Math.random() * baseWidth * 1.5) - (int)(baseWidth * 0.25);
                 int randomY = y - (int)(Math.random() * baseHeight);
 
-                // TODO: Inserisci le vere coordinate delle scintille!
-                // Assumiamo che tu abbia 2 frame di scintille nel file
                 activeEffects.add(new VisualEffect(
-                        auraImage,
-                        randomX, randomY,
-                        new int[]{129, 197},   // X della prima e seconda scintilla
-                        new int[]{985, 894},   // Y della prima e seconda scintilla
-                        new int[]{66, 72},     // W (Larghezze diverse)
-                        new int[]{106, 79},    // H (Altezze diverse)
-                        3,                     // Velocità dell'animazione (molto veloce!)
-                        scale * 0.6
+                        auraImage, randomX, randomY,
+                        new int[]{129, 197}, new int[]{985, 894}, new int[]{66, 72}, new int[]{106, 79},
+                        3, scale * 0.6
                 ));
             }
         } else {
@@ -304,12 +305,15 @@ public abstract class Fighter {
                     Rectangle hitbox = getAttackHitbox();
                     if (hitbox != null && hitbox.intersects(opponent.getBounds())) {
                         int damage = 0;
-                        if (attackType == 1 || attackType == 4) damage = punchDamage;
-                        else if (attackType == 2 || attackType == 3) damage = kickDamage;
-                        else if (attackType == 6) damage = specialDamage;
+                        int kb = 0; // Imposta la spinta per il colpo
+
+                        // Assegnazione Dinamica di Danni e Sbalzo (Knockback)
+                        if (attackType == 1 || attackType == 4) { damage = punchDamage; kb = (int)(8 * scale); }
+                        else if (attackType == 2 || attackType == 3) { damage = kickDamage; kb = (int)(10 * scale); }
+                        else if (attackType == 6) { damage = specialDamage; kb = (int)(40 * scale); } // Sbalzo devastante!
 
                         if (damage > 0) {
-                            opponent.takeDamage(damage);
+                            opponent.takeDamage(damage, kb);
                             hasHit = true;
                             if (attackType == 6) onSpecialAttackHit(opponent);
                         }
@@ -328,7 +332,8 @@ public abstract class Fighter {
                 Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(10 * scale), (int)(40 * scale), (int)(20 * scale));
 
                 if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
-                    opponent.takeDamage(kiBlastDamage);
+                    // Knockback del Ki Blast impostato a 15
+                    opponent.takeDamage(kiBlastDamage, (int)(15 * scale));
                     int impactX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
                     int impactY = opponent.y + (opponent.baseHeight / 2);
 
@@ -410,8 +415,12 @@ public abstract class Fighter {
 
         shiftX = (baseWidth - drawW) / 2;
         if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
+        shiftX += customOffsetX;
 
-        // 1. DISEGNA L'AURA DIETRO! 🔥
+        // 0. DISEGNA L'OMBRA SUL PAVIMENTO (Sotto a tutto il resto!)
+        drawShadow(g2d);
+
+        // 1. DISEGNA L'AURA DIETRO!
         drawAura(g2d);
 
         // Effetto Invincibilità
@@ -422,13 +431,12 @@ public abstract class Fighter {
         int sX1 = x + shiftX, sX2 = sX1 + drawW;
         if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
 
-        // 2. DISEGNA IL PERSONAGGIO SOPRA L'AURA 🥋
+        // 2. DISEGNA IL PERSONAGGIO SOPRA L'AURA E L'OMBRA
         g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
 
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
-    // --- DISEGNO HUD UNIVERSALE ---
     protected void drawPlayerPin(Graphics2D g2d, int drawX, int drawY, int drawW) {
         ResourceManager resM = ResourceManager.getInstance();
         BufferedImage pin = (playerID == 1) ? resM.pinP1 : resM.pinP2;
@@ -442,13 +450,11 @@ public abstract class Fighter {
         }
     }
 
-    // --- DISEGNO HUD UNIVERSALE (AGGIORNATO CON NUOVE MISURE) ---
     protected void drawUniversalHUD(Graphics2D g2d, String specialName) {
         ResourceManager resM = ResourceManager.getInstance();
         if (resM.hudFull != null) {
             double uiScale = 0.35;
 
-            // Nuove dimensioni totali del blocco HUD
             int hSrcX = 0, hSrcW = 1140, hSrcH = 410;
             int hDrawW = (int)(hSrcW * uiScale);
             int hDrawH = (int)(hSrcH * uiScale);
@@ -459,13 +465,11 @@ public abstract class Fighter {
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 26f));
                 String pText = (playerID == 1) ? "PLAYER ONE" : "PLAYER TWO";
                 g2d.setColor((playerID == 1) ? Color.RED : new Color(50, 150, 255));
-                // Aggiornato offset X a 270
                 int pTextX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - g2d.getFontMetrics().stringWidth(pText);
                 int pTextY = hY + (int)(80 * uiScale);
                 g2d.drawString(pText, pTextX, pTextY);
             }
 
-            // --- BARRA HP (W: 860, H: 80, X: 270, Y: 110) ---
             double hpPercent = (double) hp / maxHP;
             int hBarW = (int)(868 * uiScale), hBarH = (int)(92 * uiScale), currentHpW = (int) (hBarW * hpPercent);
             int hBarX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - currentHpW;
@@ -476,7 +480,6 @@ public abstract class Fighter {
             else g2d.setColor(Color.RED);
             g2d.fillRect(hBarX, hBarY, currentHpW, hBarH);
 
-            // --- BARRA SPECIAL (W: 570, H: 60, X: 290, Y: 220) ---
             double sPercent = specialEnergy / MAX_SPECIAL_ENERGY;
             int sBarW = (int)(578 * uiScale), sBarH = (int)(70 * uiScale), currentSW = (int) (sBarW * sPercent);
             int sBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentSW;
@@ -484,7 +487,6 @@ public abstract class Fighter {
             g2d.setColor(Color.CYAN);
             g2d.fillRect(sBarX, sBarY, currentSW, sBarH);
 
-            // --- BARRA AURA (W: 325, H: 60, X: 290, Y: 310) ---
             double aPercent = auraEnergy / MAX_AURA_ENERGY;
             int aBarW = (int)(330 * uiScale), aBarH = (int)(68 * uiScale), currentAW = (int) (aBarW * aPercent);
             int aBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentAW;
@@ -492,33 +494,26 @@ public abstract class Fighter {
             g2d.setColor(new Color(220, 20, 60));
             g2d.fillRect(aBarX, aBarY, currentAW, aBarH);
 
-            // --- TESTI DELLE BARRE ---
             if (resM.saiyanFont != null) {
                 int labelMargin = 10;
-
-                // Testo HP
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 24f));
                 String hpLabel = "HP";
                 int hpLabelX = (playerID == 1) ? hX + (int)(270 * uiScale) + hBarW + labelMargin : (hX + hDrawW - (int)(270 * uiScale) - hBarW) - g2d.getFontMetrics().stringWidth(hpLabel) - labelMargin;
                 if (hpPercent > 0.50) g2d.setColor(Color.GREEN); else if (hpPercent >= 0.21) g2d.setColor(Color.ORANGE); else g2d.setColor(Color.RED);
                 g2d.drawString(hpLabel, hpLabelX, hY + (int)(175 * uiScale));
 
-                // Testo SPECIAL
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 20f));
                 int specLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + sBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - sBarW) - g2d.getFontMetrics().stringWidth(specialName) - labelMargin;
                 g2d.setColor(Color.CYAN); g2d.drawString(specialName, specLabelX, hY + (int)(268 * uiScale));
 
-                // Testo AURA
                 String auraLabel = "AURA";
                 int auraLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + aBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - aBarW) - g2d.getFontMetrics().stringWidth(auraLabel) - labelMargin;
                 g2d.setColor(new Color(220, 20, 60)); g2d.drawString(auraLabel, auraLabelX, hY + (int)(358 * uiScale));
             }
 
-            // DISEGNO DELL'IMMAGINE HUD (Sopra i colori)
             if (playerID == 1) g2d.drawImage(resM.hudFull, hX, hY, hX + hDrawW, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
             else g2d.drawImage(resM.hudFull, hX + hDrawW, hY, hX, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
 
-            // --- ICONE KI BLAST ---
             if (kiBlastImage != null && resM.kiblastGray != null) {
                 int iW = 36, iH = 18, iSpacing = iW + 8, totalIconsWidth = (MAX_KI_SHOTS * iW) + ((MAX_KI_SHOTS - 1) * 8);
                 int iStartX = (playerID == 1) ? hX + (int)(270 * uiScale) : (hX + hDrawW) - (int)(270 * uiScale) - totalIconsWidth;
@@ -534,26 +529,18 @@ public abstract class Fighter {
         }
     }
 
-    // --- METODO UNIVERSALE DISEGNO AURA ---
     protected void drawAura(Graphics2D g2d) {
         if ((isChargingAura || isAuraActive) && auraImage != null) {
-            // Le coordinate esatte che mi hai fornito!
             int[] aX = {3, 357, 4, 368};
             int[] aY = {4, 4, 454, 440};
             int[] aW = {350, 345, 359, 356};
             int[] aH = {446, 432, 437, 417};
 
-            // Riduciamo la dimensione originale per farla proporzionata al Fighter
-            // Regola questo 0.45 se la vuoi più grande o più piccola!
             double auraDrawScale = 0.45 * scale;
-
             int drawAuraW = (int)(aW[auraFrame] * auraDrawScale);
             int drawAuraH = (int)(aH[auraFrame] * auraDrawScale);
 
-            // Centriamo l'Aura rispetto al centro del personaggio
             int drawAuraX = x + (baseWidth - drawAuraW) / 2;
-
-            // L'abbassiamo un po' per farla aderire ai piedi del personaggio
             int drawAuraY = y - (drawAuraH - baseHeight) + (int)(20 * scale);
 
             g2d.drawImage(auraImage,
@@ -563,5 +550,40 @@ public abstract class Fighter {
                     aX[auraFrame] + aW[auraFrame], aY[auraFrame] + aH[auraFrame],
                     null);
         }
+    }
+
+    // --- METODO: OMBRA DINAMICA ---
+    protected void drawShadow(Graphics2D g2d) {
+        // 1. Calcoliamo la distanza dal pavimento
+        // y è la posizione attuale. groundY è la posizione di base a terra.
+        int distanceFromGround = groundY - y;
+        if (distanceFromGround < 0) distanceFromGround = 0;
+
+        // 2. Calcoliamo il fattore di scala (1.0 = a terra, si avvicina a 0.2 quando vola in alto)
+        float maxDistance = (float)(250 * scale); // Distanza massima per sbiadire l'ombra
+        float shadowScale = 1.0f - (distanceFromGround / maxDistance);
+        if (shadowScale < 0.2f) shadowScale = 0.2f; // Non sparisce mai del tutto, resta un puntino
+
+        // 3. Dimensioni dinamiche dell'ombra
+        int shadowW = (int) (baseWidth * 1.2 * shadowScale); // Leggermente più larga del personaggio
+        int shadowH = (int) (14 * scale * shadowScale);      // Sottile, per dare il senso di prospettiva
+
+        // 4. Posizione X: Centrata sotto il personaggio
+        int centerX = x + (baseWidth / 2);
+        int shadowX = centerX - (shadowW / 2);
+
+        // 5. Posizione Y: FISSA sul pavimento (groundY + baseHeight = i piedi del personaggio a terra)
+        int floorY = groundY + baseHeight;
+        int shadowY = floorY - (shadowH / 2);
+
+        // 6. Disegniamo l'ellisse con Trasparenza dinamica (Alpha)
+        float alphaVal = 0.6f * shadowScale; // Al massimo è 60% opaca, poi sbiadisce
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alphaVal));
+
+        g2d.setColor(Color.BLACK);
+        g2d.fillOval(shadowX, shadowY, shadowW, shadowH);
+
+        // Ripristiniamo l'alpha globale al 100% per non rovinare il resto dei disegni!
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 }
