@@ -1,17 +1,16 @@
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.AlphaComposite;
 
 public class Goku extends Fighter {
 
-    private int beamEndX = -1; // Variabile specifica per il raggio della Kamehameha
+    private int beamEndX = -1;
 
     public Goku(int x, int y, int playerID) {
         super(x, y, playerID, ResourceManager.getInstance().gokuSpriteSheet);
         this.groundY = y;
         this.facingRight = (playerID == 1);
         this.kiBlastImage = ResourceManager.getInstance().kiblastBlue;
-        this.hudSrcY = 0; // Coordinata della faccia nell'HUD!
+        this.hudSrcY = 0;
 
         this.scale = 1.3;
         this.baseWidth = (int)(48 * scale);
@@ -40,7 +39,7 @@ public class Goku extends Fighter {
             reach = (int)(30 * scale); offsetY = (int)(35 * scale);
         } else if (attackType == 6) {
             if (attackTimer <= SPECIAL_CHARGE) return null;
-            reach = (int)(GamePanel.SCREEN_WIDTH * scale); // Kamehameha a tutto schermo!
+            reach = (int)(GamePanel.SCREEN_WIDTH * scale);
             boxHeight = (int)(40 * scale);
             offsetY = (int)(20 * scale);
         } else return null;
@@ -50,7 +49,6 @@ public class Goku extends Fighter {
         return new Rectangle(hX, hY, reach, boxHeight);
     }
 
-    // --- HOOKS: I superpoteri univoci di Goku! ---
     @Override
     protected void spawnKiBlastVFX() {
         int handX = facingRight ? x + (int)(40 * scale) : x - (int)(10 * scale);
@@ -72,10 +70,8 @@ public class Goku extends Fighter {
 
     @Override
     public void update(KeyHandler keyH, Fighter opponent) {
-        // 1. CHIAMIAMO LA CLASSE PADRE! Fa tutto lei: salti, aura, movimento, danni base.
         super.update(keyH, opponent);
 
-        // 2. Logica Specifica: Calcolo dell'estensione del raggio della Kamehameha
         if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
             beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
             Rectangle hitbox = getAttackHitbox();
@@ -84,7 +80,6 @@ public class Goku extends Fighter {
             }
         }
 
-        // 3. Logica Specifica: Avanzamento dei frame dell'animazione (solo quando cammina)
         if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
             spriteCounter++;
             if (spriteCounter > (isAuraActive ? 3 : 5)) { spriteNum++; if (spriteNum > 3) spriteNum = 1; spriteCounter = 0; }
@@ -93,7 +88,8 @@ public class Goku extends Fighter {
 
     @Override
     public void draw(Graphics2D g2d) {
-        int srcX = 33, srcY = 0, srcW = 48, srcH = 86;
+        // Valori di default (Stance base) usando le variabili ereditate!
+        srcX = 33; srcY = 0; srcW = 48; srcH = 86;
 
         if (isAuraActive && !isChargingAura) {
             int auraSrcX = 200, auraSrcY = 800, auraSrcW = 78, auraSrcH = 111;
@@ -111,11 +107,7 @@ public class Goku extends Fighter {
             else { srcW = 33; srcH = 90; srcY = 1649; int[] winGndX = {89, 128}; srcX = winGndX[endFrame - 1]; }
         }
         else if (isHit) {
-            // Primo frame dell'animazione di KO
-            srcW = 90;
-            srcH = 91;
-            srcY = 1450;
-            srcX = 187;
+            srcW = 90; srcH = 91; srcY = 1450; srcX = 187;
         }
         else if (isChargingAura) { srcW = 78; srcH = 111; srcX = 0; srcY = 800; }
         else if (isBlocking) {
@@ -145,25 +137,10 @@ public class Goku extends Fighter {
             if (spriteNum == 1) { srcX = 0; srcY = 87; } else if (spriteNum == 2) { srcX = 55; srcY = 85; } else if (spriteNum == 3) { srcX = 103; srcY = 87; }
         }
 
-        int drawW = (int)(srcW * scale), drawH = (int)(srcH * scale), drawY = y - (drawH - baseHeight);
-        int shiftX = (baseWidth - drawW) / 2;
-        if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
+        // --- MAGIA! Chiamiamo il rendering universale della classe padre ---
+        drawFighterSprite(g2d);
 
-        // --- EFFETTO LAMPEGGIO INVINCIBILITÀ ---
-        if (isInvincible && invincibleTimer % 10 < 5) {
-            // Rende il personaggio semi-trasparente
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-        }
-
-        // DISEGNO GOKU
-        int sX1 = x + shiftX, sX2 = sX1 + drawW;
-        if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
-        g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
-
-        // RIPRISTINA L'OPACITÀ NORMALE SUBITO DOPO
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-
-        // DISEGNO KAMEHAMEHA
+        // DISEGNO KAMEHAMEHA (Ora riutilizza drawY, drawW, shiftX dal metodo padre)
         if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
             int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64, headSrcX = 339, headSrcY = 1069, headW = 86, headH = 64;
             int drawBodyH = (int)(bodyH * scale), drawHeadW = (int)(headW * scale), drawHeadH = (int)(headH * scale);
