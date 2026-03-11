@@ -186,13 +186,16 @@ public class UIManager {
     }
 
     private void drawBattle(Graphics2D g2d) {
+        // --- DISEGNO BACKGROUND CORRETTO ---
         BufferedImage bg = null;
         switch(gp.stageCursor) {
-            case 0: bg = rm.canyonBg; break; // Inserisci canyonBg qui (se così nel ResourceManager)
+            case 0: bg = rm.canyonBg; break;
             case 1: bg = rm.tournamentDayBg; break;
             case 2: bg = rm.tournamentSunsetBg; break;
         }
-        if (bg != null) g2d.drawImage(bg, 0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT, null);
+        if (bg != null) {
+            g2d.drawImage(bg, 0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT, null);
+        }
 
         if (gp.player1 != null && gp.player2 != null) {
             if (gp.player2.isAttacking && !gp.player1.isAttacking) { gp.player1.draw(g2d); gp.player2.draw(g2d); }

@@ -12,6 +12,9 @@ public abstract class Fighter {
     protected int playerID;
     protected BufferedImage spriteSheet;
     protected BufferedImage kiBlastImage;
+    protected BufferedImage auraImage;
+    protected int auraFrame = 0;     // Per gestire i 4 frame dell'animazione
+    protected int auraAnimTimer = 0; // Timer per la velocità dell'animazione
 
     protected int hudSrcY = 0;
     public double scale = 1.0;
@@ -205,7 +208,17 @@ public abstract class Fighter {
         }
         if (isChargingAura) {
             auraChargeTimer++;
-            if (auraChargeTimer >= AURA_CHARGE_DURATION) { isChargingAura = false; isAuraActive = true; }
+            if (auraChargeTimer >= AURA_CHARGE_DURATION) {
+                isChargingAura = false;
+                isAuraActive = true;
+
+                // --- NUOVA MECCANICA: HEALING DELL'AURA! 💊 ---
+                hp += 25;
+                // Controllo di sicurezza: non superare mai la barra massima!
+                if (hp > maxHP) {
+                    hp = maxHP;
+                }
+            }
         }
         if (isAuraActive) {
             speed = (int)(8 * scale); jumpStrength = -15 * scale; auraEnergy -= AURA_DRAIN_RATE;
@@ -214,7 +227,38 @@ public abstract class Fighter {
             speed = (int)(4 * scale); jumpStrength = -12 * scale;
             if (auraEnergy < MAX_AURA_ENERGY && !isChargingAura) auraEnergy++;
         }
+        // --- LOGICA ANIMAZIONE AURA UNIVERSALE E SCINTILLE ---
+        if (isChargingAura || isAuraActive) {
+            auraAnimTimer++;
+            if (auraAnimTimer > 4) {
+                auraFrame++;
+                if (auraFrame > 3) auraFrame = 0;
+                auraAnimTimer = 0;
+            }
 
+            // --- NUOVO: SPAWN CASUALE DELLE SCINTILLE ---
+            // Math.random() < 0.15 significa che c'è il 15% di probabilità a ogni "tick" di creare una scintilla
+            if (auraImage != null && Math.random() < 0.15) {
+                // Calcoliamo una posizione X e Y casuale intorno al corpo del personaggio
+                int randomX = x + (int)(Math.random() * baseWidth * 1.5) - (int)(baseWidth * 0.25);
+                int randomY = y - (int)(Math.random() * baseHeight);
+
+                // TODO: Inserisci le vere coordinate delle scintille!
+                // Assumiamo che tu abbia 2 frame di scintille nel file
+                activeEffects.add(new VisualEffect(
+                        auraImage,
+                        randomX, randomY,
+                        new int[]{129, 197},   // X della prima e seconda scintilla
+                        new int[]{985, 894},   // Y della prima e seconda scintilla
+                        new int[]{66, 72},     // W (Larghezze diverse)
+                        new int[]{106, 79},    // H (Altezze diverse)
+                        3,                     // Velocità dell'animazione (molto veloce!)
+                        scale * 0.6
+                ));
+            }
+        } else {
+            auraFrame = 0;
+        }
         if (kiShotsAvailable < MAX_KI_SHOTS) { kiRechargeTimer++; if (kiRechargeTimer >= RECHARGE_TIME) { kiShotsAvailable++; kiRechargeTimer = 0; } }
         if (shotCooldown > 0) shotCooldown--;
 
@@ -359,9 +403,7 @@ public abstract class Fighter {
         prevW = inUp; prevA = inLeft; prevS = inDown; prevD = inRight;
     }
 
-    // --- NUOVO METODO DI RENDERING CORPO PRINCIPALE ---
     protected void drawFighterSprite(Graphics2D g2d) {
-        // Calcola dimensioni basate sulle variabili protette
         drawW = (int)(srcW * scale);
         drawH = (int)(srcH * scale);
         drawY = y - (drawH - baseHeight);
@@ -369,19 +411,20 @@ public abstract class Fighter {
         shiftX = (baseWidth - drawW) / 2;
         if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
 
+        // 1. DISEGNA L'AURA DIETRO! 🔥
+        drawAura(g2d);
+
         // Effetto Invincibilità
         if (isInvincible && invincibleTimer % 10 < 5) {
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
         }
 
-        // Posizionamento e Specchio
         int sX1 = x + shiftX, sX2 = sX1 + drawW;
         if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
 
-        // Disegno Finale
+        // 2. DISEGNA IL PERSONAGGIO SOPRA L'AURA 🥋
         g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
 
-        // Ripristino Opacità
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
@@ -399,11 +442,14 @@ public abstract class Fighter {
         }
     }
 
+    // --- DISEGNO HUD UNIVERSALE (AGGIORNATO CON NUOVE MISURE) ---
     protected void drawUniversalHUD(Graphics2D g2d, String specialName) {
         ResourceManager resM = ResourceManager.getInstance();
         if (resM.hudFull != null) {
             double uiScale = 0.35;
-            int hSrcX = 0, hSrcW = 1142, hSrcH = 410;
+
+            // Nuove dimensioni totali del blocco HUD
+            int hSrcX = 0, hSrcW = 1140, hSrcH = 410;
             int hDrawW = (int)(hSrcW * uiScale);
             int hDrawH = (int)(hSrcH * uiScale);
             int hX = (playerID == 1) ? 20 : GamePanel.SCREEN_WIDTH - hDrawW - 20;
@@ -413,58 +459,69 @@ public abstract class Fighter {
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 26f));
                 String pText = (playerID == 1) ? "PLAYER ONE" : "PLAYER TWO";
                 g2d.setColor((playerID == 1) ? Color.RED : new Color(50, 150, 255));
-                int pTextX = (playerID == 1) ? hX + (int)(272 * uiScale) : hX + hDrawW - (int)(272 * uiScale) - g2d.getFontMetrics().stringWidth(pText);
+                // Aggiornato offset X a 270
+                int pTextX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - g2d.getFontMetrics().stringWidth(pText);
                 int pTextY = hY + (int)(80 * uiScale);
                 g2d.drawString(pText, pTextX, pTextY);
             }
 
+            // --- BARRA HP (W: 860, H: 80, X: 270, Y: 110) ---
             double hpPercent = (double) hp / maxHP;
-            int hBarW = (int)(860 * uiScale), hBarH = (int)(92 * uiScale), currentHpW = (int) (hBarW * hpPercent);
-            int hBarX = (playerID == 1) ? hX + (int)(272 * uiScale) : hX + hDrawW - (int)(272 * uiScale) - currentHpW;
-            int hBarY = hY + (int)(104 * uiScale);
+            int hBarW = (int)(868 * uiScale), hBarH = (int)(92 * uiScale), currentHpW = (int) (hBarW * hpPercent);
+            int hBarX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - currentHpW;
+            int hBarY = hY + (int)(110 * uiScale);
 
             if (hpPercent > 0.50) g2d.setColor(Color.GREEN);
             else if (hpPercent >= 0.21) g2d.setColor(Color.ORANGE);
             else g2d.setColor(Color.RED);
             g2d.fillRect(hBarX, hBarY, currentHpW, hBarH);
 
+            // --- BARRA SPECIAL (W: 570, H: 60, X: 290, Y: 220) ---
             double sPercent = specialEnergy / MAX_SPECIAL_ENERGY;
-            int sBarW = (int)(570 * uiScale), sBarH = (int)(68 * uiScale), currentSW = (int) (sBarW * sPercent);
-            int sBarX = (playerID == 1) ? hX + (int)(292 * uiScale) : hX + hDrawW - (int)(292 * uiScale) - currentSW;
+            int sBarW = (int)(578 * uiScale), sBarH = (int)(70 * uiScale), currentSW = (int) (sBarW * sPercent);
+            int sBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentSW;
             int sBarY = hY + (int)(216 * uiScale);
             g2d.setColor(Color.CYAN);
             g2d.fillRect(sBarX, sBarY, currentSW, sBarH);
 
+            // --- BARRA AURA (W: 325, H: 60, X: 290, Y: 310) ---
             double aPercent = auraEnergy / MAX_AURA_ENERGY;
             int aBarW = (int)(330 * uiScale), aBarH = (int)(68 * uiScale), currentAW = (int) (aBarW * aPercent);
-            int aBarX = (playerID == 1) ? hX + (int)(292 * uiScale) : hX + hDrawW - (int)(292 * uiScale) - currentAW;
-            int aBarY = hY + (int)(306 * uiScale);
+            int aBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentAW;
+            int aBarY = hY + (int)(310 * uiScale);
             g2d.setColor(new Color(220, 20, 60));
             g2d.fillRect(aBarX, aBarY, currentAW, aBarH);
 
+            // --- TESTI DELLE BARRE ---
             if (resM.saiyanFont != null) {
                 int labelMargin = 10;
+
+                // Testo HP
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 24f));
                 String hpLabel = "HP";
-                int hpLabelX = (playerID == 1) ? hX + (int)(272 * uiScale) + hBarW + labelMargin : (hX + hDrawW - (int)(272 * uiScale) - hBarW) - g2d.getFontMetrics().stringWidth(hpLabel) - labelMargin;
+                int hpLabelX = (playerID == 1) ? hX + (int)(270 * uiScale) + hBarW + labelMargin : (hX + hDrawW - (int)(270 * uiScale) - hBarW) - g2d.getFontMetrics().stringWidth(hpLabel) - labelMargin;
                 if (hpPercent > 0.50) g2d.setColor(Color.GREEN); else if (hpPercent >= 0.21) g2d.setColor(Color.ORANGE); else g2d.setColor(Color.RED);
                 g2d.drawString(hpLabel, hpLabelX, hY + (int)(175 * uiScale));
 
+                // Testo SPECIAL
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 20f));
-                int specLabelX = (playerID == 1) ? hX + (int)(292 * uiScale) + sBarW + labelMargin : (hX + hDrawW - (int)(292 * uiScale) - sBarW) - g2d.getFontMetrics().stringWidth(specialName) - labelMargin;
+                int specLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + sBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - sBarW) - g2d.getFontMetrics().stringWidth(specialName) - labelMargin;
                 g2d.setColor(Color.CYAN); g2d.drawString(specialName, specLabelX, hY + (int)(268 * uiScale));
 
+                // Testo AURA
                 String auraLabel = "AURA";
-                int auraLabelX = (playerID == 1) ? hX + (int)(292 * uiScale) + aBarW + labelMargin : (hX + hDrawW - (int)(292 * uiScale) - aBarW) - g2d.getFontMetrics().stringWidth(auraLabel) - labelMargin;
+                int auraLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + aBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - aBarW) - g2d.getFontMetrics().stringWidth(auraLabel) - labelMargin;
                 g2d.setColor(new Color(220, 20, 60)); g2d.drawString(auraLabel, auraLabelX, hY + (int)(358 * uiScale));
             }
 
+            // DISEGNO DELL'IMMAGINE HUD (Sopra i colori)
             if (playerID == 1) g2d.drawImage(resM.hudFull, hX, hY, hX + hDrawW, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
             else g2d.drawImage(resM.hudFull, hX + hDrawW, hY, hX, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
 
+            // --- ICONE KI BLAST ---
             if (kiBlastImage != null && resM.kiblastGray != null) {
                 int iW = 36, iH = 18, iSpacing = iW + 8, totalIconsWidth = (MAX_KI_SHOTS * iW) + ((MAX_KI_SHOTS - 1) * 8);
-                int iStartX = (playerID == 1) ? hX + (int)(272 * uiScale) : (hX + hDrawW) - (int)(272 * uiScale) - totalIconsWidth;
+                int iStartX = (playerID == 1) ? hX + (int)(270 * uiScale) : (hX + hDrawW) - (int)(270 * uiScale) - totalIconsWidth;
                 int iStartY = hY + hDrawH + 8;
                 for(int i = 0; i < MAX_KI_SHOTS; i++) {
                     int renderIndex = (playerID == 1) ? i : (MAX_KI_SHOTS - 1 - i);
@@ -474,6 +531,37 @@ public abstract class Fighter {
                     else g2d.drawImage(resM.kiblastGray, dX1, iStartY, dX2, iStartY + iH, 0, 0, 253, 124, null);
                 }
             }
+        }
+    }
+
+    // --- METODO UNIVERSALE DISEGNO AURA ---
+    protected void drawAura(Graphics2D g2d) {
+        if ((isChargingAura || isAuraActive) && auraImage != null) {
+            // Le coordinate esatte che mi hai fornito!
+            int[] aX = {3, 357, 4, 368};
+            int[] aY = {4, 4, 454, 440};
+            int[] aW = {350, 345, 359, 356};
+            int[] aH = {446, 432, 437, 417};
+
+            // Riduciamo la dimensione originale per farla proporzionata al Fighter
+            // Regola questo 0.45 se la vuoi più grande o più piccola!
+            double auraDrawScale = 0.45 * scale;
+
+            int drawAuraW = (int)(aW[auraFrame] * auraDrawScale);
+            int drawAuraH = (int)(aH[auraFrame] * auraDrawScale);
+
+            // Centriamo l'Aura rispetto al centro del personaggio
+            int drawAuraX = x + (baseWidth - drawAuraW) / 2;
+
+            // L'abbassiamo un po' per farla aderire ai piedi del personaggio
+            int drawAuraY = y - (drawAuraH - baseHeight) + (int)(20 * scale);
+
+            g2d.drawImage(auraImage,
+                    drawAuraX, drawAuraY,
+                    drawAuraX + drawAuraW, drawAuraY + drawAuraH,
+                    aX[auraFrame], aY[auraFrame],
+                    aX[auraFrame] + aW[auraFrame], aY[auraFrame] + aH[auraFrame],
+                    null);
         }
     }
 }

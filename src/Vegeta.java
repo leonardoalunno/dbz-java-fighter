@@ -6,21 +6,26 @@ public class Vegeta extends Fighter {
     private int beamEndX = -1;
 
     public Vegeta(int x, int y, int playerID) {
-        // Carichiamo lo spritesheet di Vegeta!
         super(x, y, playerID, ResourceManager.getInstance().vegetaSpriteSheet);
-        this.groundY = y;
+
+        this.auraImage = ResourceManager.getInstance().auraYellow;
+
         this.facingRight = (playerID == 1);
-
-        // Vegeta usa tipicamente colpi di ki gialli
         this.kiBlastImage = ResourceManager.getInstance().kiblastYellow;
-
-        // ECCO LA COORDINATA CHE MI HAI DATO!
         this.hudSrcY = 533;
 
-        // Statistiche base (le teniamo identiche a Goku per ora, ma potrai bilanciarle dopo)
-        this.scale = 1.3;
+        // 1. PRIMA definiamo la scala e calcoliamo l'altezza effettiva!
+        this.scale = 1.5; // Il tuo test
         this.baseWidth = (int)(48 * scale);
         this.baseHeight = (int)(86 * scale);
+
+        // ==========================================
+        // INSERISCI LE TRE RIGHE ESATTAMENTE QUI:
+        int universalFloorY = y + 111;
+        this.y = universalFloorY - this.baseHeight;
+        this.groundY = this.y;
+        // ==========================================
+
         this.speed = (int)(4 * scale);
         this.jumpStrength = -12 * scale;
         this.gravity = 0.5 * scale;
@@ -36,9 +41,11 @@ public class Vegeta extends Fighter {
         this.kiBlastDamage = 12;
 
         // --- BILANCIAMENTO FINAL FLASH ---
-        this.specialDamage = 50;         // Danno massiccio! (Goku ha 35)
-        this.SPECIAL_CHARGE = 65;        // Caricamento più lento (Goku ha 40)
-        this.SPECIAL_DURATION = 100;     // L'onda dura un po' di più a schermo (Goku ha 90)
+        this.MAX_SPECIAL_ENERGY = 3600;  // <-- AUMENTATO QUESTO VALORE! (Goku ha 2400)
+
+        this.specialDamage = 50;
+        this.SPECIAL_CHARGE = 65;
+        this.SPECIAL_DURATION = 100;
 
         // Ricalcoliamo il consumo di energia in base alla nuova durata
         this.specialDrainRate = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
@@ -140,14 +147,6 @@ public class Vegeta extends Fighter {
         srcW = 43;
         srcH = 75;
 
-
-        if (isAuraActive && !isChargingAura) {
-            int auraSrcX = 200, auraSrcY = 800, auraSrcW = 78, auraSrcH = 111;
-            double auraScale = 1.25 * scale;
-            int drawAuraW = (int)(auraSrcW * auraScale), drawAuraH = (int)(auraSrcH * auraScale);
-            int drawAuraX = x + (baseWidth - drawAuraW) / 2, drawAuraY = y - (drawAuraH - baseHeight);
-            g2d.drawImage(ResourceManager.getInstance().gokuSpriteSheet, facingRight ? drawAuraX : drawAuraX + drawAuraW, drawAuraY, facingRight ? drawAuraX + drawAuraW : drawAuraX, drawAuraY + drawAuraH, auraSrcX, auraSrcY, auraSrcX + auraSrcW, auraSrcY + auraSrcH, null);
-        }
 
         // --- ANIMAZIONE KO VEGETA ---
         if (hp <= 0) {

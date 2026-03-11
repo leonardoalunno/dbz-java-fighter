@@ -7,14 +7,26 @@ public class Goku extends Fighter {
 
     public Goku(int x, int y, int playerID) {
         super(x, y, playerID, ResourceManager.getInstance().gokuSpriteSheet);
-        this.groundY = y;
+
+        this.auraImage = ResourceManager.getInstance().auraBlue;
+
         this.facingRight = (playerID == 1);
         this.kiBlastImage = ResourceManager.getInstance().kiblastBlue;
         this.hudSrcY = 0;
 
+        // 1. Definiamo scala e dimensioni
         this.scale = 1.3;
         this.baseWidth = (int)(48 * scale);
         this.baseHeight = (int)(86 * scale);
+
+        // ==========================================
+        // INSERISCI LE TRE RIGHE ESATTAMENTE QUI:
+        int universalFloorY = y + 111;
+        this.y = universalFloorY - this.baseHeight;
+        this.groundY = this.y;
+        // ==========================================
+
+
         this.speed = (int)(4 * scale);
         this.jumpStrength = -12 * scale;
         this.gravity = 0.5 * scale;
@@ -103,13 +115,7 @@ public class Goku extends Fighter {
         // Valori di default (Stance base) usando le variabili ereditate!
         srcX = 33; srcY = 0; srcW = 48; srcH = 86;
 
-        if (isAuraActive && !isChargingAura) {
-            int auraSrcX = 200, auraSrcY = 800, auraSrcW = 78, auraSrcH = 111;
-            double auraScale = 1.25 * scale;
-            int drawAuraW = (int)(auraSrcW * auraScale), drawAuraH = (int)(auraSrcH * auraScale);
-            int drawAuraX = x + (baseWidth - drawAuraW) / 2, drawAuraY = y - (drawAuraH - baseHeight);
-            g2d.drawImage(spriteSheet, facingRight ? drawAuraX : drawAuraX + drawAuraW, drawAuraY, facingRight ? drawAuraX + drawAuraW : drawAuraX, drawAuraY + drawAuraH, auraSrcX, auraSrcY, auraSrcX + auraSrcW, auraSrcY + auraSrcH, null);
-        }
+
 
         if (hp <= 0) {
             srcW = 90; srcH = 91; srcY = 1450;
@@ -134,8 +140,16 @@ public class Goku extends Fighter {
                 srcX = 300; // Frame 2: Reazione al colpo (rinculo)
             }
         }
-        else if (isChargingAura) { srcW = 78; srcH = 111; srcX = 0; srcY = 800;
-            shiftX += (int)(Math.random() * 3) - 1; }
+        else if (isChargingAura) {
+            // NUOVE COORDINATE PRECISE
+            srcW = 42;
+            srcH = 90;
+            srcX = 0;
+            srcY = 821;
+
+            // Manteniamo il bellissimo effetto vibrazione/jitter
+            shiftX += (int)(Math.random() * 3) - 1;
+        }
         else if (isBlocking) {
             // Usiamo i primi 5 frame per la preparazione (X=229)
             if (blockTimer <= 5) {
