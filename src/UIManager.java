@@ -10,6 +10,9 @@ public class UIManager {
     private GamePanel gp;
     private ResourceManager rm;
 
+    public static final Color COLOR_P1 = new Color(129, 4, 4);   // Rosso estratto da vs_left
+    public static final Color COLOR_P2 = new Color(0, 141, 141); // Ciano estratto da vs_right
+
     public UIManager(GamePanel gp) {
         this.gp = gp;
         this.rm = ResourceManager.getInstance();
@@ -131,7 +134,7 @@ public class UIManager {
         g2d.setStroke(new BasicStroke(5));
 
         // --- DISEGNO CURSORE E SCRITTA P1 ---
-        g2d.setColor(Color.RED);
+        g2d.setColor(COLOR_P1); // Rosso profondo (129, 4, 4)
         int p1X = startX + (gp.p1Cursor * spacing);
         g2d.drawRect(p1X - 6, startY - 6, size + 12, size + 12);
 
@@ -141,7 +144,7 @@ public class UIManager {
         }
 
         // --- DISEGNO CURSORE E SCRITTA P2 ---
-        g2d.setColor(new Color(50, 150, 255));
+        g2d.setColor(COLOR_P2); // Ciano tecnologico (0, 141, 141)
         int p2X = startX + (gp.p2Cursor * spacing);
 
         if (gp.p1Cursor == gp.p2Cursor) {
@@ -187,24 +190,89 @@ public class UIManager {
         }
     }
 
+
     private void drawVsScreen(Graphics2D g2d) {
-        g2d.setColor(Color.BLACK); g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
+        ResourceManager rm = ResourceManager.getInstance();
 
-        BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconSupremeKai};
-        int iconSize = 200, p1X = 250, p2X = GamePanel.SCREEN_WIDTH - 250 - iconSize, yPos = 260;
+        // 1. Sfondo nero di base
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
 
-        g2d.setColor(Color.WHITE); g2d.setStroke(new BasicStroke(5));
-        if (icons[gp.p1Cursor] != null) { g2d.drawRect(p1X - 5, yPos - 5, iconSize + 10, iconSize + 10); g2d.drawImage(icons[gp.p1Cursor], p1X, yPos, iconSize, iconSize, null); }
-        if (icons[gp.p2Cursor] != null) { g2d.drawRect(p2X - 5, yPos - 5, iconSize + 10, iconSize + 10); g2d.drawImage(icons[gp.p2Cursor], p2X, yPos, iconSize, iconSize, null); }
+        // --- CALCOLO ANIMAZIONE SLIDE-IN ---
+        // Usiamo lo stateTimer per farli scivolare dentro nei primi 30 frame (mezzo secondo)
+        int slideAnim = Math.max(0, 30 - gp.stateTimer) * 40;
 
-        setCustomFont(g2d, 50f); g2d.setColor(Color.WHITE);
-        g2d.drawString(gp.charNames[gp.p1Cursor], p1X + (iconSize / 2) - (g2d.getFontMetrics().stringWidth(gp.charNames[gp.p1Cursor]) / 2), yPos - 30);
-        g2d.drawString(gp.charNames[gp.p2Cursor], p2X + (iconSize / 2) - (g2d.getFontMetrics().stringWidth(gp.charNames[gp.p2Cursor]) / 2), yPos - 30);
+        // 2. Disegniamo gli sfondi diagonali (vs_left e vs_right) con l'animazione
+        if (rm.vsLeft != null) g2d.drawImage(rm.vsLeft, -slideAnim, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT, null);
+        if (rm.vsRight != null) g2d.drawImage(rm.vsRight, slideAnim, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT, null);
 
-        if (rm.vsIcon != null) {
-            int vsTargetW = 160, vsTargetH = (vsTargetW * rm.vsIcon.getHeight()) / rm.vsIcon.getWidth();
-            g2d.drawImage(rm.vsIcon, (GamePanel.SCREEN_WIDTH - vsTargetW) / 2, yPos + (iconSize / 2) - (vsTargetH / 2), vsTargetW, vsTargetH, null);
+        // 3. DISEGNO DEI PORTRAIT CON SCALA DINAMICA
+        BufferedImage p1Img = rm.portraits[gp.p1Cursor];
+        BufferedImage p2Img = rm.portraits[gp.p2Cursor];
+
+        int targetHeight = 650; // Altezza fissa universale per allinearli tutti perfettamente!
+
+        // --- PORTRAIT P1 (Sinistra) ---
+        if (p1Img != null) {
+            int w1 = (targetHeight * p1Img.getWidth()) / p1Img.getHeight();
+            // Ancorato in basso, scivola da sinistra
+            int x1 = 50 - slideAnim;
+            int y1 = GamePanel.SCREEN_HEIGHT - targetHeight;
+            g2d.drawImage(p1Img, x1, y1, w1, targetHeight, null);
         }
+
+        // --- PORTRAIT P2 (Destra) - SPECCHIATO! ---
+        if (p2Img != null) {
+            int w2 = (targetHeight * p2Img.getWidth()) / p2Img.getHeight();
+            // Ancorato in basso, scivola da destra
+            int x2 = GamePanel.SCREEN_WIDTH - 50 + slideAnim;
+            int y2 = GamePanel.SCREEN_HEIGHT - targetHeight;
+
+            // Per specchiare l'immagine, scambiamo i punti finali di X del rettangolo di destinazione
+            g2d.drawImage(p2Img,
+                    x2, y2, x2 - w2, y2 + targetHeight, // Destinazione (disegnata al contrario)
+                    0, 0, p2Img.getWidth(), p2Img.getHeight(), // Sorgente originale
+                    null);
+        }
+
+        // 4. BAGLIORE VS ROTANTE IN CENTRO
+        if (rm.vsBg != null) {
+            // --- MODIFICATO: Rimpiccioliamo il sole ---
+            int glowSize = 480; // Era 700. Ora è molto più compatto e meno invasivo.
+
+            int cx = GamePanel.SCREEN_WIDTH / 2;
+            int cy = GamePanel.SCREEN_HEIGHT / 2;
+
+            java.awt.geom.AffineTransform oldXForm = g2d.getTransform();
+            g2d.translate(cx, cy);
+            g2d.rotate(Math.toRadians(gp.stateTimer * 3));
+            g2d.drawImage(rm.vsBg, -glowSize / 2, -glowSize / 2, glowSize, glowSize, null);
+            g2d.setTransform(oldXForm);
+        }
+
+        // 5. ICONA VS CENTRALE
+        if (rm.vsIcon != null) {
+            // --- MODIFICATO: Rimpiccioliamo le lettere VS ---
+            int iconW = 240; // Era 350. Ora è proporzionato al nuovo sole centrale.
+
+            int iconH = (iconW * rm.vsIcon.getHeight()) / rm.vsIcon.getWidth();
+            if (gp.stateTimer < 15) {
+                iconW += (15 - gp.stateTimer) * 10;
+                iconH += (15 - gp.stateTimer) * 10;
+            }
+            g2d.drawImage(rm.vsIcon, (GamePanel.SCREEN_WIDTH - iconW) / 2, (GamePanel.SCREEN_HEIGHT - iconH) / 2, iconW, iconH, null);
+        }
+
+        // 6. NOMI DEI LOTTATORI
+        g2d.setColor(Color.WHITE);
+        setCustomFont(g2d, 55f);
+
+        // Nome P1 (Spostato un po' più al centro)
+        g2d.drawString(gp.charNames[gp.p1Cursor], 80 - slideAnim, GamePanel.SCREEN_HEIGHT - 40);
+
+        // Nome P2
+        String p2Name = gp.charNames[gp.p2Cursor];
+        g2d.drawString(p2Name, GamePanel.SCREEN_WIDTH - 80 - g2d.getFontMetrics().stringWidth(p2Name) + slideAnim, GamePanel.SCREEN_HEIGHT - 40);
     }
 
     private void drawBattle(Graphics2D g2d) {

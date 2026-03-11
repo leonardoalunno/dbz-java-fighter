@@ -28,7 +28,7 @@ public class ResourceManager {
 
     // --- MENU E UI ---
     public BufferedImage splashLogo, dbzLogo, fightIcon, koIcon, load1, load2;
-    public BufferedImage mainMenuBg, readyIcon, vsIcon, winnerIcon;
+    public BufferedImage mainMenuBg, readyIcon, winnerIcon;
     public BufferedImage menuCursor;
     public BufferedImage hudFull;
     public BufferedImage pinP1, pinP2;
@@ -39,6 +39,11 @@ public class ResourceManager {
 
     // --- AURE ---
     public BufferedImage auraBlue, auraRed, auraPurple, auraGreen, auraYellow;
+
+    // --- Sfondi e icone VS Screen ---
+    public BufferedImage vsBg, vsIcon, vsLeft, vsRight;
+    // --- Array per i portrait dei personaggi (stesso ordine del charNames: Goku, Vegeta, Trunks, Broly, SupKai) ---
+    public BufferedImage[] portraits = new BufferedImage[5];
 
     private ResourceManager() {
         loadImages();
@@ -102,7 +107,6 @@ public class ResourceManager {
             load2 = ImageIO.read(getClass().getResourceAsStream("/assets/menu/load_2.png"));
             mainMenuBg = ImageIO.read(getClass().getResourceAsStream("/assets/menu/main_menu_bg.png"));
             readyIcon = ImageIO.read(getClass().getResourceAsStream("/assets/menu/ready_icon.png"));
-            vsIcon = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_icon.png"));
             winnerIcon = ImageIO.read(getClass().getResourceAsStream("/assets/menu/winner_icon.png"));
             menuCursor = ImageIO.read(getClass().getResourceAsStream("/assets/menu/cursor.png"));
             hudFull = ImageIO.read(getClass().getResourceAsStream("/assets/menu/hud.png"));
@@ -125,6 +129,21 @@ public class ResourceManager {
             auraRed = ImageIO.read(getClass().getResourceAsStream("/assets/effects/aura_red.png"));
             auraGreen = ImageIO.read(getClass().getResourceAsStream("/assets/effects/aura_green.png"));
             auraPurple = ImageIO.read(getClass().getResourceAsStream("/assets/effects/aura_purple.png"));
+
+            // --- CARICAMENTO ASSET VS SCREEN ---
+            vsIcon = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_icon.png"));
+            vsBg = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_bg.png"));
+            // Sostituisci i nomi se i file li hai chiamati Image_vs_top.png ecc.
+            vsLeft = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_left.png"));
+            vsRight = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_right.png"));
+
+            // --- CARICAMENTO PORTRAIT ---
+            portraits[0] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_goku.png"));
+            portraits[1] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_vegeta.png"));
+            portraits[2] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_future_trunks.png"));
+            portraits[3] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_broly.png"));
+            portraits[4] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_supreme_kai.png"));
+
 
             System.out.println("Risorse caricate con successo (Formato JAR-Ready)!");
 

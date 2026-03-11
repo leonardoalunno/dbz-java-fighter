@@ -49,6 +49,8 @@ public class Vegeta extends Fighter {
 
         // Ricalcoliamo il consumo di energia in base alla nuova durata
         this.specialDrainRate = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
+
+        this.auraColor = new Color(255, 238, 0); // Giallo Vegeta
     }
 
     @Override
@@ -207,20 +209,18 @@ public class Vegeta extends Fighter {
         else if (isTeleporting) {
             // Scegliamo il frame base a seconda di dove si trova
             if (isFlying || isJumping) {
-                // Frame base VOLO
-                srcW = 32; srcH = 80; srcX = 12; srcY = 885;
+                // --- MODIFICATO: Ora usa il frame del Volo Stazionario! ---
+                srcW = 41;
+                srcH = 79;
+                srcX = 210;
+                srcY = 6;
             } else {
                 // Frame base STANCE (A terra)
-                srcW = 43; srcH = 73; srcX = 11; srcY = 10;
+                srcW = 43;
+                srcH = 73;
+                srcX = 11;
+                srcY = 10;
             }
-
-            // --- EFFETTO DISSOLVENZA ---
-            // teleportFrame in Fighter.java va da 6 (visibile) a 1 (invisibile)
-            // Calcoliamo l'alpha: 6/6 = 1.0 (opaco), 1/6 = 0.16 (quasi trasparente)
-            float alpha = (float) teleportFrame / 6.0f;
-
-            // Applichiamo la trasparenza al Graphics2D
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, Math.min(1.0f, alpha))));
         }
         else if (isAttacking) {
             if (attackType == 1) {

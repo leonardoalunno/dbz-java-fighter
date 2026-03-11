@@ -1,5 +1,6 @@
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.Color;
 
 public class Goku extends Fighter {
 
@@ -37,6 +38,8 @@ public class Goku extends Fighter {
         this.kiShotsAvailable = 3;
         this.kiBlastDamage = 10;
         this.specialDamage = 35;
+
+        this.auraColor = new Color(0, 118, 255); // Blu Goku
     }
 
     @Override

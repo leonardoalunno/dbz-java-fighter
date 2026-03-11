@@ -25,6 +25,8 @@ public abstract class Fighter {
     protected int baseWidth = 48;
     protected int baseHeight = 86;
 
+    public Color auraColor = Color.WHITE; // Colore di default
+
     protected boolean facingRight;
     protected int groundY;
 
@@ -361,7 +363,11 @@ public abstract class Fighter {
                         }
                     } else if (teleportPhase == 2) {
                         teleportFrame++;
-                        if (teleportFrame > 6) isTeleporting = false;
+                        if (teleportFrame > 6){
+                            isTeleporting = false;
+                            teleportPhase = 1;
+                            teleportFrame = 6;
+                        }
                     }
                 }
             } else {
@@ -417,23 +423,33 @@ public abstract class Fighter {
         if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
         shiftX += customOffsetX;
 
-        // 0. DISEGNA L'OMBRA SUL PAVIMENTO (Sotto a tutto il resto!)
         drawShadow(g2d);
-
-        // 1. DISEGNA L'AURA DIETRO!
         drawAura(g2d);
 
-        // Effetto Invincibilità
-        if (isInvincible && invincibleTimer % 10 < 5) {
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+        // --- GESTIONE UNIVERSALE DELLA TRASPARENZA (ALPHA) ---
+        float currentAlpha = 1.0f; // Default: completamente visibile
+
+        if (isTeleporting) {
+            // Effetto Teletrasporto: sfuma in base alla fase
+            // teleportFrame va da 6 (visibile) a 1 (invisibile)
+            currentAlpha = (float) teleportFrame / 6.0f;
+            // Assicuriamoci che non vada fuori dai limiti 0.0 - 1.0
+            currentAlpha = Math.max(0.0f, Math.min(1.0f, currentAlpha));
         }
+        else if (isInvincible && invincibleTimer % 10 < 5) {
+            // Effetto Invincibilità: lampeggia al 40% di opacità
+            currentAlpha = 0.4f;
+        }
+
+        // Applichiamo la trasparenza calcolata
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, currentAlpha));
 
         int sX1 = x + shiftX, sX2 = sX1 + drawW;
         if (!facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
 
-        // 2. DISEGNA IL PERSONAGGIO SOPRA L'AURA E L'OMBRA
         g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
 
+        // Ripristiniamo l'opacità al 100% per non rovinare HUD, pin o esplosioni!
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
@@ -464,12 +480,16 @@ public abstract class Fighter {
             if (resM.saiyanFont != null) {
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 26f));
                 String pText = (playerID == 1) ? "PLAYER ONE" : "PLAYER TWO";
-                g2d.setColor((playerID == 1) ? Color.RED : new Color(50, 150, 255));
+
+                // --- COLORE NOME GIOCATORE (COERENTE CON VS SCREEN) ---
+                g2d.setColor((playerID == 1) ? UIManager.COLOR_P1 : UIManager.COLOR_P2);
+
                 int pTextX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - g2d.getFontMetrics().stringWidth(pText);
                 int pTextY = hY + (int)(80 * uiScale);
                 g2d.drawString(pText, pTextX, pTextY);
             }
 
+            // --- LOGICA HP (MANTENUTA PER CHIAREZZA DI GIOCO) ---
             double hpPercent = (double) hp / maxHP;
             int hBarW = (int)(868 * uiScale), hBarH = (int)(92 * uiScale), currentHpW = (int) (hBarW * hpPercent);
             int hBarX = (playerID == 1) ? hX + (int)(270 * uiScale) : hX + hDrawW - (int)(270 * uiScale) - currentHpW;
@@ -480,6 +500,7 @@ public abstract class Fighter {
             else g2d.setColor(Color.RED);
             g2d.fillRect(hBarX, hBarY, currentHpW, hBarH);
 
+            // --- BARRA SPECIAL ---
             double sPercent = specialEnergy / MAX_SPECIAL_ENERGY;
             int sBarW = (int)(578 * uiScale), sBarH = (int)(70 * uiScale), currentSW = (int) (sBarW * sPercent);
             int sBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentSW;
@@ -487,33 +508,42 @@ public abstract class Fighter {
             g2d.setColor(Color.CYAN);
             g2d.fillRect(sBarX, sBarY, currentSW, sBarH);
 
+            // --- BARRA AURA (COLORATA IN BASE AL GIOCATORE) ---
             double aPercent = auraEnergy / MAX_AURA_ENERGY;
             int aBarW = (int)(330 * uiScale), aBarH = (int)(68 * uiScale), currentAW = (int) (aBarW * aPercent);
             int aBarX = (playerID == 1) ? hX + (int)(290 * uiScale) : hX + hDrawW - (int)(290 * uiScale) - currentAW;
             int aBarY = hY + (int)(310 * uiScale);
-            g2d.setColor(new Color(220, 20, 60));
+
+            g2d.setColor(this.auraColor);
             g2d.fillRect(aBarX, aBarY, currentAW, aBarH);
 
             if (resM.saiyanFont != null) {
                 int labelMargin = 10;
+
+                // Testo HP (Manteniamo il colore in base alla vita rimasta)
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 24f));
                 String hpLabel = "HP";
                 int hpLabelX = (playerID == 1) ? hX + (int)(270 * uiScale) + hBarW + labelMargin : (hX + hDrawW - (int)(270 * uiScale) - hBarW) - g2d.getFontMetrics().stringWidth(hpLabel) - labelMargin;
                 if (hpPercent > 0.50) g2d.setColor(Color.GREEN); else if (hpPercent >= 0.21) g2d.setColor(Color.ORANGE); else g2d.setColor(Color.RED);
                 g2d.drawString(hpLabel, hpLabelX, hY + (int)(175 * uiScale));
 
+                // Testo SPECIAL
                 g2d.setFont(resM.saiyanFont.deriveFont(Font.PLAIN, 20f));
                 int specLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + sBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - sBarW) - g2d.getFontMetrics().stringWidth(specialName) - labelMargin;
                 g2d.setColor(Color.CYAN); g2d.drawString(specialName, specLabelX, hY + (int)(268 * uiScale));
 
+                // Testo AURA (COLORATO IN BASE AL GIOCATORE)
                 String auraLabel = "AURA";
                 int auraLabelX = (playerID == 1) ? hX + (int)(290 * uiScale) + aBarW + labelMargin : (hX + hDrawW - (int)(290 * uiScale) - aBarW) - g2d.getFontMetrics().stringWidth(auraLabel) - labelMargin;
-                g2d.setColor(new Color(220, 20, 60)); g2d.drawString(auraLabel, auraLabelX, hY + (int)(358 * uiScale));
+                g2d.setColor(this.auraColor);
+                g2d.drawString(auraLabel, auraLabelX, hY + (int)(358 * uiScale));
             }
 
+            // DISEGNO DEL FRAME HUD
             if (playerID == 1) g2d.drawImage(resM.hudFull, hX, hY, hX + hDrawW, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
             else g2d.drawImage(resM.hudFull, hX + hDrawW, hY, hX, hY + hDrawH, hSrcX, hudSrcY, hSrcX + hSrcW, hudSrcY + hSrcH, null);
 
+            // ... (Logica Ki Blast Icons invariata)
             if (kiBlastImage != null && resM.kiblastGray != null) {
                 int iW = 36, iH = 18, iSpacing = iW + 8, totalIconsWidth = (MAX_KI_SHOTS * iW) + ((MAX_KI_SHOTS - 1) * 8);
                 int iStartX = (playerID == 1) ? hX + (int)(270 * uiScale) : (hX + hDrawW) - (int)(270 * uiScale) - totalIconsWidth;
