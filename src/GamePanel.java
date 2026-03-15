@@ -31,7 +31,14 @@ public class GamePanel extends JPanel implements Runnable {
     public String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Sup Kai"};
 
     public int stageCursor = 0;
-    public String[] stageNames = {"Canyon Sunset", "Tournament Day", "Tournament Sunset"};
+
+    // --- NUOVI 17 STAGE ---
+    public String[] stageNames = {
+            "Cavern", "Cell Games Arena", "Galactic Arena", "Gravity Training",
+            "Hyperbolic Time Chamber", "Islands", "King Kai's Planet", "Land of the Kais",
+            "Planet Namek 1", "Planet Namek 2", "Planet Namek Destroyed", "Rocky Field",
+            "Rocky Field Evening", "Space", "Wasteland", "West City Destroyed", "West City"
+    };
 
     public int menuCooldown = 0;
     public final int COOLDOWN_TIME = 12;
@@ -162,7 +169,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void initBattle() {
         int startDistance = 250;
-        int spawnY = 550;
+        int spawnY = 575;
 
         int p1StartX = startDistance;
         int p2StartX = SCREEN_WIDTH - startDistance - 48;

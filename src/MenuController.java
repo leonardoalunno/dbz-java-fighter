@@ -79,6 +79,7 @@ public class MenuController {
 
     private void updateStageMenu() {
         if (gp.menuCooldown == 0) {
+            // --- Tasto per tornare indietro (Menu Selezione Personaggi) ---
             if (gp.keyH.p1_block || gp.keyH.p2_block) {
                 gp.gameState = 2;
                 gp.p1Ready = false; gp.p2Ready = false;
@@ -86,8 +87,23 @@ public class MenuController {
                 return;
             }
 
-            if (gp.keyH.p1_right) { gp.stageCursor = (gp.stageCursor + 1) % 3; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p1_left) { gp.stageCursor = (gp.stageCursor + 2) % 3; gp.menuCooldown = gp.COOLDOWN_TIME; }
+            // Recuperiamo il numero totale di stage (ora sono 17!)
+            int totalStages = gp.stageNames.length;
+
+            // --- Scorrimento a DESTRA ---
+            if (gp.keyH.p1_right) {
+                gp.stageCursor = (gp.stageCursor + 1) % totalStages;
+                gp.menuCooldown = gp.COOLDOWN_TIME;
+            }
+
+            // --- Scorrimento a SINISTRA ---
+            // Aggiungiamo totalStages prima di sottrarre 1 per evitare numeri negativi nel modulo
+            if (gp.keyH.p1_left) {
+                gp.stageCursor = (gp.stageCursor + totalStages - 1) % totalStages;
+                gp.menuCooldown = gp.COOLDOWN_TIME;
+            }
+
+            // --- Tasto per avviare la battaglia ---
             if (gp.keyH.p1_punch) {
                 gp.initBattle();
                 gp.gameState = 4;

@@ -167,27 +167,47 @@ public class UIManager {
     }
 
     private void drawStageMenu(Graphics2D g2d) {
-        g2d.setColor(new Color(20, 20, 30)); g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
-        g2d.setColor(Color.YELLOW); setCustomFont(g2d, 70f);
-        g2d.drawString("STAGE SELECT", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("STAGE SELECT")) / 2, 120);
+        ResourceManager rm = ResourceManager.getInstance();
 
-        BufferedImage[] stageIcons = {rm.canyonIcon, rm.tournamentDayIcon, rm.tournamentSunsetIcon};
-        int iconSize = 180, spacing = 300, startX = (GamePanel.SCREEN_WIDTH - (spacing * 2 + iconSize)) / 2, y = 280;
+        // Sfondo scuro
+        g2d.setColor(new Color(20, 20, 30));
+        g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
 
-        for (int i = 0; i < 3; i++) {
-            int x = startX + (i * spacing);
-            if (stageIcons[i] != null) g2d.drawImage(stageIcons[i], x, y, iconSize, iconSize, null);
+        g2d.setColor(Color.YELLOW);
+        setCustomFont(g2d, 70f);
+        g2d.drawString("STAGE SELECT", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("STAGE SELECT")) / 2, 100);
 
-            if (i == gp.stageCursor) {
-                g2d.setColor(Color.YELLOW); g2d.setStroke(new BasicStroke(6));
-                g2d.drawRect(x - 8, y - 8, iconSize + 16, iconSize + 16);
-                g2d.setColor(Color.WHITE); setCustomFont(g2d, 40f);
-                g2d.drawString(gp.stageNames[i], (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(gp.stageNames[i])) / 2, 550);
-            } else {
-                g2d.setColor(Color.DARK_GRAY); g2d.setStroke(new BasicStroke(4));
-                g2d.drawRect(x - 8, y - 8, iconSize + 16, iconSize + 16);
-            }
+        // --- DISEGNO PREVIEW DELLO STAGE CENTRALE (DIMENSIONI CORRETTE) ---
+        BufferedImage currentIcon = rm.stageIcons[gp.stageCursor];
+        if (currentIcon != null) {
+            // Fissiamo l'altezza massima per non uscire dallo schermo!
+            int iconH = 380;
+            // Calcoliamo la larghezza in base alle proporzioni dell'immagine
+            int iconW = (iconH * currentIcon.getWidth()) / currentIcon.getHeight();
+
+            int iconX = (GamePanel.SCREEN_WIDTH - iconW) / 2;
+            int iconY = 160; // Alzato un pochino per centrarlo meglio
+
+            // Bordo bianco per farla risaltare
+            g2d.setColor(Color.WHITE);
+            g2d.setStroke(new BasicStroke(6));
+            g2d.drawRect(iconX - 6, iconY - 6, iconW + 12, iconH + 12);
+
+            g2d.drawImage(currentIcon, iconX, iconY, iconW, iconH, null);
+
+            // Frecce colorate a lato per indicare lo scorrimento
+            setBangersFont(g2d, 80f);
+            g2d.setColor(Color.WHITE); // Sostituito P1/P2 color con Bianco
+            g2d.drawString("<", iconX - 80, iconY + (iconH / 2) + 25);
+            g2d.drawString(">", iconX + iconW + 40, iconY + (iconH / 2) + 25);
         }
+
+        // --- NOME DELLO STAGE (Sotto l'immagine) ---
+        g2d.setColor(Color.WHITE);
+        setCustomFont(g2d, 50f);
+        String sName = gp.stageNames[gp.stageCursor];
+        // Scriviamo il nome a Y = 620 (così sta perfettamente sotto l'immagine che finisce a 540)
+        g2d.drawString(sName, (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(sName)) / 2, 620);
     }
 
 
@@ -276,22 +296,24 @@ public class UIManager {
     }
 
     private void drawBattle(Graphics2D g2d) {
-        // --- DISEGNO BACKGROUND CORRETTO ---
-        BufferedImage bg = null;
-        switch(gp.stageCursor) {
-            case 0: bg = rm.canyonBg; break;
-            case 1: bg = rm.tournamentDayBg; break;
-            case 2: bg = rm.tournamentSunsetBg; break;
-        }
+        // --- DISEGNO BACKGROUND DINAMICO (USANDO L'ARRAY DEI 17 STAGE) ---
+        BufferedImage bg = rm.stageBgs[gp.stageCursor];
         if (bg != null) {
             g2d.drawImage(bg, 0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT, null);
         }
 
+        // --- DISEGNO PERSONAGGI (Gestione Z-Index per chi attacca) ---
         if (gp.player1 != null && gp.player2 != null) {
-            if (gp.player2.isAttacking && !gp.player1.isAttacking) { gp.player1.draw(g2d); gp.player2.draw(g2d); }
-            else { gp.player2.draw(g2d); gp.player1.draw(g2d); }
+            if (gp.player2.isAttacking && !gp.player1.isAttacking) {
+                gp.player1.draw(g2d);
+                gp.player2.draw(g2d);
+            } else {
+                gp.player2.draw(g2d);
+                gp.player1.draw(g2d);
+            }
         }
 
+        // --- STATUS ICONS (Ready, Fight, KO) ---
         BufferedImage currentStatusIcon = null; int targetH = 120;
         if (gp.battlePhase == 0) currentStatusIcon = rm.readyIcon;
         else if (gp.battlePhase == 1) currentStatusIcon = rm.fightIcon;
@@ -302,13 +324,22 @@ public class UIManager {
             g2d.drawImage(currentStatusIcon, (GamePanel.SCREEN_WIDTH - drawW) / 2, 250, drawW, targetH, null);
         }
 
+        // --- SCHERMATA VITTORIA (Fase 4) ---
         if (gp.battlePhase == 4) {
-            g2d.setColor(new Color(0, 0, 0, 150)); g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
-            String winnerText = (gp.player2.hp <= 0) ? "PLAYER ONE WINS" : "PLAYER TWO WINS";
-            g2d.setColor((gp.player2.hp <= 0) ? Color.RED : new Color(50, 150, 255));
-            setCustomFont(g2d, 90f); g2d.drawString(winnerText, (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(winnerText)) / 2, 300);
+            // Overlay scuro
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
 
-            g2d.setColor(Color.GRAY); setCustomFont(g2d, 35f);
+            String winnerText = (gp.player2.hp <= 0) ? "PLAYER ONE WINS" : "PLAYER TWO WINS";
+
+            // --- APPLICATI I NUOVI COLORI ESTRATTI DAL VS SCREEN ---
+            g2d.setColor((gp.player2.hp <= 0) ? COLOR_P1 : COLOR_P2);
+
+            setCustomFont(g2d, 90f);
+            g2d.drawString(winnerText, (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(winnerText)) / 2, 300);
+
+            g2d.setColor(Color.GRAY);
+            setCustomFont(g2d, 35f);
             g2d.drawString("Press BLOCK to return to Menu", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("Press BLOCK to return to Menu")) / 2, 600);
         }
     }

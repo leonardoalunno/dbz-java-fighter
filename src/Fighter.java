@@ -123,9 +123,11 @@ public abstract class Fighter {
     protected abstract void fireKiBlastProjectile();
     protected abstract void onSpecialAttackHit(Fighter opponent);
 
-    // --- MODIFICATO: Ora riceve anche la forza di sbalzo (Knockback) ---
+    // --- MODIFICATO: Prevenzione Stunlock (Combo Infinite) ---
     public void takeDamage(int amount, int appliedKnockback) {
-        if (isInvincible) return;
+        // Se il personaggio è invincibile O sta GIA' subendo un colpo, ignora i nuovi danni.
+        // Questo impedisce che l'avversario resetti il timer colpendoti a ripetizione!
+        if (isInvincible || isHit) return;
 
         if (isBlocking) {
             hp -= Math.max(1, amount / 4);

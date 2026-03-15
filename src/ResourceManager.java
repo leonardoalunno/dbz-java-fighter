@@ -21,10 +21,9 @@ public class ResourceManager {
     // --- ICONE PERSONAGGI ---
     public BufferedImage iconGoku, iconVegeta, iconFutureTrunks, iconSupremeKai, iconBroly;
 
-    // --- RISORSE STAGE (Aggiornate per 16:9 con file unico bg.png) ---
-    public BufferedImage canyonBg, canyonIcon;
-    public BufferedImage tournamentDayBg, tournamentDayIcon;
-    public BufferedImage tournamentSunsetBg, tournamentSunsetIcon;
+    // --- STAGES ---
+    public BufferedImage[] stageBgs = new BufferedImage[17];
+    public BufferedImage[] stageIcons = new BufferedImage[17];
 
     // --- MENU E UI ---
     public BufferedImage splashLogo, dbzLogo, fightIcon, koIcon, load1, load2;
@@ -88,15 +87,20 @@ public class ResourceManager {
             iconSupremeKai = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_supreme_kai.png"));
             iconBroly = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_broly.png"));
 
-            // 3. CARICAMENTO DEI 3 STAGE
-            canyonBg = ImageIO.read(getClass().getResourceAsStream("/assets/stages/canyon_sunset/bg.png"));
-            canyonIcon = ImageIO.read(getClass().getResourceAsStream("/assets/stages/canyon_sunset/icon.png"));
+            // 3. CARICAMENTO DEGLI STAGE
+            // NOMI ESATTI DELLE CARTELLE COME DA SCREENSHOT
+            String[] folderNames = {
+                    "cavern", "cell_games_arena", "galactic_arena", "gravity_training",
+                    "hyperbolic_time_chamber", "islands", "kings_kai_planet", "land_of_the_kais",
+                    "planet_namek_1", "planet_namek_2", "planet_namek_destroyed", "rocky_field",
+                    "rocky_field_evening", "space", "wasteland", "west_city_destroyed", "west-city"
+            };
 
-            tournamentDayBg = ImageIO.read(getClass().getResourceAsStream("/assets/stages/tournament_day/bg.png"));
-            tournamentDayIcon = ImageIO.read(getClass().getResourceAsStream("/assets/stages/tournament_day/icon.png"));
-
-            tournamentSunsetBg = ImageIO.read(getClass().getResourceAsStream("/assets/stages/tournament_sunset/bg.png"));
-            tournamentSunsetIcon = ImageIO.read(getClass().getResourceAsStream("/assets/stages/tournament_sunset/icon.png"));
+            // Carica tutti i bg e le icone in automatico!
+            for (int i = 0; i < 17; i++) {
+                stageBgs[i] = ImageIO.read(getClass().getResourceAsStream("/assets/stages/" + folderNames[i] + "/bg.png"));
+                stageIcons[i] = ImageIO.read(getClass().getResourceAsStream("/assets/stages/" + folderNames[i] + "/icon.png"));
+            }
 
             // 4. CARICAMENTO MENU E UI ORIGINALI
             splashLogo = ImageIO.read(getClass().getResourceAsStream("/assets/menu/splash_logo.png"));
