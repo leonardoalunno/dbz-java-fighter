@@ -15,7 +15,7 @@ public class Vegeta extends Fighter {
         this.hudSrcY = 533;
 
         // 1. PRIMA definiamo la scala e calcoliamo l'altezza effettiva!
-        this.scale = 1.5; // Il tuo test
+        this.scale = 2.0; // Il tuo test
         this.baseWidth = (int)(48 * scale);
         this.baseHeight = (int)(86 * scale);
 
@@ -203,8 +203,13 @@ public class Vegeta extends Fighter {
             shiftX += (int)(Math.random() * 3) - 1;
         }
         else if (isBlocking) {
-            if (isFlying || isJumping) { srcW = 37; srcH = 87; srcX = 160; srcY = 2; }
-            else { srcW = 41; srcH = 78; srcX = 0; srcY = 972; }
+            if (isFlying || isJumping) {
+                // --- PARATA IN VOLO VEGETA (CORRETTA) ---
+                srcW = 31; srcH = 76; srcX = 277; srcY = 103;
+            } else {
+                // --- PARATA A TERRA VEGETA (CORRETTA) ---
+                srcW = 43; srcH = 73; srcX = 11; srcY = 983;
+            }
         }
         else if (isTeleporting) {
             // Scegliamo il frame base a seconda di dove si trova

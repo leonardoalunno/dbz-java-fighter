@@ -123,22 +123,23 @@ public abstract class Fighter {
     protected abstract void fireKiBlastProjectile();
     protected abstract void onSpecialAttackHit(Fighter opponent);
 
-    // --- MODIFICATO: Prevenzione Stunlock (Combo Infinite) ---
-    public void takeDamage(int amount, int appliedKnockback) {
-        // Se il personaggio è invincibile O sta GIA' subendo un colpo, ignora i nuovi danni.
-        // Questo impedisce che l'avversario resetti il timer colpendoti a ripetizione!
+    // --- MODIFICATO: Prevenzione Stunlock e Danni da Parata Selettivi ---
+    public void takeDamage(int amount, int appliedKnockback, boolean isEnergyAttack) {
         if (isInvincible || isHit) return;
 
         if (isBlocking) {
-            hp -= Math.max(1, amount / 4);
+            // Se sta parando, prende danno SOLO se è un attacco energetico (KiBlast o Special)
+            if (isEnergyAttack) {
+                hp -= Math.max(1, amount / 4);
+            }
+            // I colpi fisici non tolgono HP, ma ti spingono comunque un pochino all'indietro
             blockTimer++;
-            // Se sta parando, scivola all'indietro ma con 1/3 della forza!
             this.knockbackSpeed = appliedKnockback / 3;
         } else {
             hp -= amount;
             isHit = true;
             hitTimer = 0;
-            this.knockbackSpeed = appliedKnockback; // Sbalzo in pieno
+            this.knockbackSpeed = appliedKnockback;
             isAttacking = false;
             isChargingAura = false;
             isTeleporting = false;
@@ -316,8 +317,12 @@ public abstract class Fighter {
                         else if (attackType == 2 || attackType == 3) { damage = kickDamage; kb = (int)(10 * scale); }
                         else if (attackType == 6) { damage = specialDamage; kb = (int)(40 * scale); } // Sbalzo devastante!
 
+
                         if (damage > 0) {
-                            opponent.takeDamage(damage, kb);
+                            // Se attackType è 6 (Special), allora è un colpo energetico!
+                            boolean isEnergy = (attackType == 6);
+                            opponent.takeDamage(damage, kb, isEnergy);
+
                             hasHit = true;
                             if (attackType == 6) onSpecialAttackHit(opponent);
                         }
@@ -337,7 +342,7 @@ public abstract class Fighter {
 
                 if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
                     // Knockback del Ki Blast impostato a 15
-                    opponent.takeDamage(kiBlastDamage, (int)(15 * scale));
+                    opponent.takeDamage(kiBlastDamage, (int)(15 * scale), true);
                     int impactX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
                     int impactY = opponent.y + (opponent.baseHeight / 2);
 

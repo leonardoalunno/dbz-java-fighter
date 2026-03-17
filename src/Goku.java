@@ -16,7 +16,7 @@ public class Goku extends Fighter {
         this.hudSrcY = 0;
 
         // 1. Definiamo scala e dimensioni
-        this.scale = 1.3;
+        this.scale = 1.7;
         this.baseWidth = (int)(48 * scale);
         this.baseHeight = (int)(86 * scale);
 
@@ -151,34 +151,18 @@ public class Goku extends Fighter {
             srcY = 821;
 
             // Manteniamo il bellissimo effetto vibrazione/jitter
-            shiftX += (int)(Math.random() * 3) - 1;
+            shiftX += (int) (Math.random() * 3) - 1;
         }
+
         else if (isBlocking) {
-            // Usiamo i primi 5 frame per la preparazione (X=229)
-            if (blockTimer <= 5) {
-                // --- PREPARAZIONE (Comune a Terra e Aria) ---
-                srcW = 41;
-                srcH = 77;
-                srcX = 229;
-                srcY = 100;
-            }
-            else {
-                // Dopo la preparazione, passiamo alla posa fissa
                 if (isFlying || isJumping) {
-                    // --- PARATA IN ARIA / VOLO ---
-                    srcW = 31;
-                    srcH = 76;
-                    srcX = 277;
-                    srcY = 103;
+                    // --- PARATA IN VOLO GOKU ---
+                    srcW = 37; srcH = 87; srcX = 160; srcY = 2;
                 } else {
-                    // --- PARATA A TERRA ---
-                    srcW = 43;
-                    srcH = 73;
-                    srcX = 11;
-                    srcY = 983;
+                    // --- PARATA A TERRA GOKU ---
+                    srcW = 41; srcH = 78; srcX = 0; srcY = 972;
                 }
             }
-        }
         else if (isTeleporting) { srcW = 30; srcH = 91; srcY = 1748; int[] tX = {3, 38, 72, 111, 147, 185}; srcX = tX[Math.min(teleportFrame - 1, 5)]; }
         else if (isAttacking) {
             if (attackType == 1) { srcY = 442; srcW = 87; srcH = 85; srcX = (attackTimer <= PUNCH_STARTUP) ? 0 : 130; }
