@@ -15,11 +15,11 @@ public class ResourceManager {
     public BufferedImage gokuSpriteSheet;
     public BufferedImage vegetaSpriteSheet;
     public BufferedImage futureTrunksSpriteSheet;
-    public BufferedImage supremeKaiSpriteSheet;
+    public BufferedImage beerusSpriteSheet;
     public BufferedImage brolySpriteSheet;
 
     // --- ICONE PERSONAGGI ---
-    public BufferedImage iconGoku, iconVegeta, iconFutureTrunks, iconSupremeKai, iconBroly;
+    public BufferedImage iconGoku, iconVegeta, iconFutureTrunks, iconBeerus, iconBroly;
 
     // --- STAGES ---
     public BufferedImage[] stageBgs = new BufferedImage[17];
@@ -41,7 +41,7 @@ public class ResourceManager {
 
     // --- Sfondi e icone VS Screen ---
     public BufferedImage vsBg, vsIcon, vsLeft, vsRight;
-    // --- Array per i portrait dei personaggi (stesso ordine del charNames: Goku, Vegeta, Trunks, Broly, SupKai) ---
+    // --- Array per i portrait dei personaggi (stesso ordine del charNames: Goku, Vegeta, Trunks, Broly, Beerus) ---
     public BufferedImage[] portraits = new BufferedImage[5];
 
     private ResourceManager() {
@@ -77,14 +77,14 @@ public class ResourceManager {
             gokuSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/goku_spritesheet.png"));
             vegetaSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/vegeta_spritesheet.png"));
             futureTrunksSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/future_trunks_spritesheet.png"));
-            supremeKaiSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/supreme_kai_spritesheet.png"));
+            beerusSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/beerus_spritesheet.png"));
             brolySpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/broly_spritesheet.png"));
 
             // 2. CARICAMENTO ICONE PERSONAGGI
             iconGoku = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_goku.png"));
             iconVegeta = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_vegeta.png"));
             iconFutureTrunks = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_future_trunks.png"));
-            iconSupremeKai = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_supreme_kai.png"));
+            iconBeerus = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_beerus.png"));
             iconBroly = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_broly.png"));
 
             // 3. CARICAMENTO DEGLI STAGE
@@ -146,7 +146,7 @@ public class ResourceManager {
             portraits[1] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_vegeta.png"));
             portraits[2] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_future_trunks.png"));
             portraits[3] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_broly.png"));
-            portraits[4] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_supreme_kai.png"));
+            portraits[4] = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_portraits/portrait_beerus.png"));
 
 
             System.out.println("Risorse caricate con successo (Formato JAR-Ready)!");

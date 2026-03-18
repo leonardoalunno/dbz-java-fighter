@@ -28,7 +28,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public int p1Cursor = 0, p2Cursor = 4;
     public boolean p1Ready = false, p2Ready = false;
-    public String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Sup Kai"};
+    public String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Beerus"};
 
     public int stageCursor = 0;
 
@@ -162,7 +162,7 @@ public class GamePanel extends JPanel implements Runnable {
             case 1: return new Vegeta(x, y, playerID);
             case 2: return new Goku(x, y, playerID); // return new FutureTrunks(x, y, playerID);
             case 3: return new Goku(x, y, playerID); // return new Broly(x, y, playerID);
-            case 4: return new Goku(x, y, playerID); // return new SupremeKai(x, y, playerID);
+            case 4: return new Goku(x, y, playerID); // return new Beerus(x, y, playerID);
             default: return new Goku(x, y, playerID);
         }
     }

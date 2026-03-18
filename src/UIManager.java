@@ -121,7 +121,7 @@ public class UIManager {
         g2d.setColor(Color.YELLOW); setCustomFont(g2d, 70f);
         g2d.drawString("CHARACTER SELECT", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("CHARACTER SELECT")) / 2, 100);
 
-        BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconSupremeKai};
+        BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconBeerus};
         int size = 110, spacing = 160, startX = (GamePanel.SCREEN_WIDTH - (spacing * 4 + size)) / 2, startY = 300;
 
         for(int i = 0; i < 5; i++) {

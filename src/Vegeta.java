@@ -32,8 +32,9 @@ public class Vegeta extends Fighter {
 
 
         this.MAX_SPECIAL_ENERGY = 2400;
-        this.MAX_KI_SHOTS = 3;
-        this.kiShotsAvailable = 3;
+        this.kiBlastKiCost = 70.0;
+
+        this.ki = MAX_KI; // Inizia con Ki pieno
 
         // Magari Vegeta fa un po' più di danno coi KiBlast e meno con i pugni? Scegli tu!
         this.punchDamage = 5;
@@ -51,6 +52,8 @@ public class Vegeta extends Fighter {
         this.specialDrainRate = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
 
         this.auraColor = new Color(255, 238, 0); // Giallo Vegeta
+
+        this.portraitSrcY = 300;
     }
 
     @Override

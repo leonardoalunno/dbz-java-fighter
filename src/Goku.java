@@ -16,9 +16,9 @@ public class Goku extends Fighter {
         this.hudSrcY = 0;
 
         // 1. Definiamo scala e dimensioni
-        this.scale = 1.7;
-        this.baseWidth = (int)(48 * scale);
-        this.baseHeight = (int)(86 * scale);
+        this.scale = 1;
+        this.baseWidth = (int)(72 * scale);
+        this.baseHeight = (int)(163 * scale);
 
         // ==========================================
         // INSERISCI LE TRE RIGHE ESATTAMENTE QUI:
@@ -29,17 +29,20 @@ public class Goku extends Fighter {
 
 
         this.speed = (int)(4 * scale);
-        this.jumpStrength = -12 * scale;
-        this.gravity = 0.5 * scale;
+        this.jumpStrength = -16 * scale;
+        this.gravity = 0.35 * scale;
 
         this.MAX_SPECIAL_ENERGY = 2400;
         this.specialDrainRate = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
-        this.MAX_KI_SHOTS = 3;
-        this.kiShotsAvailable = 3;
+        this.kiBlastKiCost = 80.0;
         this.kiBlastDamage = 10;
         this.specialDamage = 35;
 
+        this.ki = MAX_KI; // Inizia con Ki pieno
+
         this.auraColor = new Color(0, 118, 255); // Blu Goku
+
+        this.portraitSrcY = 0;
     }
 
     @Override
@@ -109,14 +112,28 @@ public class Goku extends Fighter {
 
         if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
             spriteCounter++;
-            if (spriteCounter > (isAuraActive ? 3 : 5)) { spriteNum++; if (spriteNum > 3) spriteNum = 1; spriteCounter = 0; }
-        } else spriteNum = 1;
+            if (spriteCounter > (isAuraActive ? 3 : 5)) {
+                spriteNum++;
+                if (spriteNum > 6) spriteNum = 1;
+                spriteCounter = 0;
+            }
+        } else if (isJumping) {
+            spriteCounter++;
+            if (spriteCounter > 8) {
+                spriteNum++;
+                if (spriteNum > 7) spriteNum = 7; // si ferma all'ultimo frame
+                spriteCounter = 0;
+            }
+        } else {
+            spriteNum = 1;
+        }
     }
+
 
     @Override
     public void draw(Graphics2D g2d) {
         // Valori di default (Stance base) usando le variabili ereditate!
-        srcX = 33; srcY = 0; srcW = 48; srcH = 86;
+        srcX = 455; srcY = 553; srcW = 72; srcH = 163;
 
 
 
@@ -155,14 +172,17 @@ public class Goku extends Fighter {
         }
 
         else if (isBlocking) {
-                if (isFlying || isJumping) {
-                    // --- PARATA IN VOLO GOKU ---
-                    srcW = 37; srcH = 87; srcX = 160; srcY = 2;
-                } else {
-                    // --- PARATA A TERRA GOKU ---
-                    srcW = 41; srcH = 78; srcX = 0; srcY = 972;
-                }
+            int blockFrame = Math.min(blockActiveTimer / 5, 2);
+            if (isFlying || isJumping) {
+                srcY = 1268; srcH = 140; srcW = 70;
+                int[] blockX = {7, 81, 163};
+                srcX = blockX[blockFrame];
+            } else {
+                srcY = 1015; srcH = 132; srcW = 95;
+                int[] blockX = {3, 102, 201};
+                srcX = blockX[blockFrame];
             }
+        }
         else if (isTeleporting) { srcW = 30; srcH = 91; srcY = 1748; int[] tX = {3, 38, 72, 111, 147, 185}; srcX = tX[Math.min(teleportFrame - 1, 5)]; }
         else if (isAttacking) {
             if (attackType == 1) { srcY = 442; srcW = 87; srcH = 85; srcX = (attackTimer <= PUNCH_STARTUP) ? 0 : 130; }
@@ -175,15 +195,27 @@ public class Goku extends Fighter {
                 else { srcY = 1065; srcW = 54; srcH = 77; srcX = 59; }
             }
         }
-        else if (isCrouching) { srcW = 48; srcH = 91; srcX = 0; srcY = 180; }
-        else if (isFlying) {
-            srcY = 273; srcH = 91;
-            if (flyNum == 1) { srcX = 0; srcW = 48; } else if (flyNum == 2) { srcX = 101; srcW = 57; } else if (flyNum == 4) { srcX = 352; srcW = 76; }
+        else if (isCrouching) {
+            srcY = 1411; srcH = 162; srcW = 99;
+            srcX = 8; // frame 1 — preparazione salto
         }
-        else if (isJumping) { srcW = 48; srcH = 91; srcX = 72; srcY = 180; }
+        else if (isFlying) {
+            srcY = 8691; srcH = 156; srcW = 104;
+            if      (flyNum == 1) srcX = 0;
+            else if (flyNum == 2) srcX = 150;
+            else if (flyNum == 3) srcX = 300;
+            else if (flyNum == 4) srcX = 450;
+            else if (flyNum == 5) srcX = 600;
+        }
+        else if (isJumping) {
+            srcY = 1411; srcH = 162; srcW = 99;
+            int[] jumpX = {122, 224, 328, 435, 550, 670, 780};
+            srcX = jumpX[Math.min(spriteNum - 1, 6)];
+        }
         else if (isMoving) {
-            srcW = 48; srcH = 91;
-            if (spriteNum == 1) { srcX = 0; srcY = 87; } else if (spriteNum == 2) { srcX = 55; srcY = 85; } else if (spriteNum == 3) { srcX = 103; srcY = 87; }
+            srcY = 885; srcH = 125; srcW = 106;
+            int[] walkX = {3, 112, 221, 329, 437, 546};
+            srcX = walkX[spriteNum - 1];
         }
 
         // --- MAGIA! Chiamiamo il rendering universale della classe padre ---
