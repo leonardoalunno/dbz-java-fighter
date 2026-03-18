@@ -304,7 +304,7 @@ public class UIManager {
 
         // --- DISEGNO PERSONAGGI (Gestione Z-Index per chi attacca) ---
         if (gp.player1 != null && gp.player2 != null) {
-            if (gp.player2.isAttacking && !gp.player1.isAttacking) {
+            if (gp.player2.isAttacking() && !gp.player1.isAttacking()) {
                 gp.player1.draw(g2d);
                 gp.player2.draw(g2d);
             } else {
@@ -330,10 +330,9 @@ public class UIManager {
             g2d.setColor(new Color(0, 0, 0, 150));
             g2d.fillRect(0, 0, GamePanel.SCREEN_WIDTH, GamePanel.SCREEN_HEIGHT);
 
-            String winnerText = (gp.player2.hp <= 0) ? "PLAYER ONE WINS" : "PLAYER TWO WINS";
-
-            // --- APPLICATI I NUOVI COLORI ESTRATTI DAL VS SCREEN ---
-            g2d.setColor((gp.player2.hp <= 0) ? COLOR_P1 : COLOR_P2);
+            boolean p2ko = (gp.player2.state == FighterState.KO);
+            String winnerText = p2ko ? "PLAYER ONE WINS" : "PLAYER TWO WINS";
+            g2d.setColor(p2ko ? COLOR_P1 : COLOR_P2);
 
             setCustomFont(g2d, 90f);
             g2d.drawString(winnerText, (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(winnerText)) / 2, 300);
@@ -353,11 +352,23 @@ public class UIManager {
         int startY = 180, spacing = 45, p1X = 150, p2X = GamePanel.SCREEN_WIDTH - 450;
         g2d.setColor(Color.CYAN); setCustomFont(g2d, 50f); g2d.drawString("PLAYER ONE", p1X, startY);
         g2d.setFont(new Font("Arial", Font.BOLD, 22)); g2d.setColor(Color.WHITE);
-        g2d.drawString("W, A, S, D - Move / Jump", p1X, startY + spacing); g2d.drawString("W, A, S, D (Double Tap) - Teleport", p1X, startY + spacing * 2); g2d.drawString("F - Punch / Smash / Select", p1X, startY + spacing * 3); g2d.drawString("R - Kick", p1X, startY + spacing * 4); g2d.drawString("E - Ki Blast", p1X, startY + spacing * 5); g2d.drawString("Z - Special Attack", p1X, startY + spacing * 6); g2d.drawString("V - Fly", p1X, startY + spacing * 7); g2d.drawString("X - Charge Aura", p1X, startY + spacing * 8); g2d.drawString("Q - Block", p1X, startY + spacing * 9);
+        g2d.drawString("F - Light Attack", p1X, startY + spacing * 3);
+        g2d.drawString("R - Heavy Attack", p1X, startY + spacing * 4);
+        g2d.drawString("E - Ki Blast (Special)", p1X, startY + spacing * 5);
+        g2d.drawString("Z - Ultimate", p1X, startY + spacing * 6);
+        g2d.drawString("V - Fly", p1X, startY + spacing * 7);
+        g2d.drawString("C - Charge Ki", p1X, startY + spacing * 8);
+        g2d.drawString("Q - Block / Z-Cancel", p1X, startY + spacing * 9);
 
         g2d.setColor(Color.RED); setCustomFont(g2d, 50f); g2d.drawString("PLAYER TWO", p2X, startY);
         g2d.setFont(new Font("Arial", Font.BOLD, 22)); g2d.setColor(Color.WHITE);
-        g2d.drawString("Arrows - Move / Jump", p2X, startY + spacing); g2d.drawString("Arrows (Double Tap) - Teleport", p2X, startY + spacing * 2); g2d.drawString("L - Punch / Smash / Select", p2X, startY + spacing * 3); g2d.drawString("P - Kick", p2X, startY + spacing * 4); g2d.drawString("O - Ki Blast", p2X, startY + spacing * 5); g2d.drawString("K - Special Attack", p2X, startY + spacing * 6); g2d.drawString("N - Fly", p2X, startY + spacing * 7); g2d.drawString("M - Charge Aura", p2X, startY + spacing * 8); g2d.drawString("U - Block", p2X, startY + spacing * 9);
+        g2d.drawString("L - Light Attack", p2X, startY + spacing * 3);
+        g2d.drawString("P - Heavy Attack", p2X, startY + spacing * 4);
+        g2d.drawString("O - Ki Blast (Special)", p2X, startY + spacing * 5);
+        g2d.drawString("K - Ultimate", p2X, startY + spacing * 6);
+        g2d.drawString("N - Fly", p2X, startY + spacing * 7);
+        g2d.drawString("M - Charge Ki", p2X, startY + spacing * 8);
+        g2d.drawString("U - Block / Z-Cancel", p2X, startY + spacing * 9);
 
         g2d.setColor(Color.GRAY); setCustomFont(g2d, 35f); g2d.drawString("Press BLOCK to return to Menu", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("Press BLOCK to return to Menu")) / 2, 680);
     }

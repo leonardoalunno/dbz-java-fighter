@@ -1,6 +1,7 @@
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Color;
+import java.awt.AlphaComposite;
 
 public class Goku extends Fighter {
 
@@ -9,119 +10,221 @@ public class Goku extends Fighter {
     public Goku(int x, int y, int playerID) {
         super(x, y, playerID, ResourceManager.getInstance().gokuSpriteSheet);
 
-        this.auraImage = ResourceManager.getInstance().auraBlue;
-
-        this.facingRight = (playerID == 1);
+        this.auraImage   = ResourceManager.getInstance().auraBlue;
         this.kiBlastImage = ResourceManager.getInstance().kiblastBlue;
-        this.hudSrcY = 0;
+        this.facingRight  = (playerID == 1);
+        this.portraitSrcY = 0;
 
-        // 1. Definiamo scala e dimensioni
-        this.scale = 1;
-        this.baseWidth = (int)(72 * scale);
+        // Scala e dimensioni
+        this.scale      = 1.0;
+        this.baseWidth  = (int)(72 * scale);
         this.baseHeight = (int)(163 * scale);
 
-        // ==========================================
-        // INSERISCI LE TRE RIGHE ESATTAMENTE QUI:
+        // Universal floor
         int universalFloorY = y + 111;
-        this.y = universalFloorY - this.baseHeight;
+        this.y       = universalFloorY - this.baseHeight;
         this.groundY = this.y;
-        // ==========================================
 
-
-        this.speed = (int)(4 * scale);
+        // Fisica
+        this.speed        = (int)(4 * scale);
         this.jumpStrength = -16 * scale;
-        this.gravity = 0.35 * scale;
+        this.gravity      = 0.35 * scale;
 
-        this.MAX_SPECIAL_ENERGY = 2400;
-        this.specialDrainRate = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
+        // Ki
+        this.ki            = MAX_KI;
         this.kiBlastKiCost = 80.0;
+        this.kiOnHitReward = 15.0;
+
+        // Danni
         this.kiBlastDamage = 10;
         this.specialDamage = 35;
 
-        this.ki = MAX_KI; // Inizia con Ki pieno
+        // Special (Kamehameha)
+        this.MAX_SPECIAL_ENERGY = 2400;
+        this.SPECIAL_CHARGE     = 40;
+        this.SPECIAL_DURATION   = 90;
+        this.specialDrainRate   = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
 
-        this.auraColor = new Color(0, 118, 255); // Blu Goku
+        // Aura
+        this.auraColor = new Color(0, 118, 255);
 
-        this.portraitSrcY = 0;
+        // Definisci le combo routes
+        this.comboRoutes = defineComboRoutes();
     }
+
+    // =============================================
+    // COMBO ROUTES — sequenze di Goku
+    // =============================================
+    @Override
+    public ComboRoute[] defineComboRoutes() {
+        return new ComboRoute[] {
+
+                // L — jab singolo
+                new ComboRoute("goku_L",
+                        new int[]{ ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_jab", 5, 3, 7, 5, 8)
+                        },
+                        "light_1"
+                ),
+
+                // L → L — doppio jab
+                new ComboRoute("goku_LL",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_jab",  5, 3, 7, 5, 8),
+                                new AttackData("goku_jab2", 4, 3, 6, 5, 8)
+                        },
+                        "light_2"
+                ),
+
+                // L → L → L — triplo jab
+                new ComboRoute("goku_LLL",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_jab",  5, 3, 7, 5,  8),
+                                new AttackData("goku_jab2", 4, 3, 6, 5,  8),
+                                new AttackData("goku_kick", 6, 4, 8, 8, 10)
+                        },
+                        "light_3"
+                ),
+
+                // L → L → H — launcher
+                new ComboRoute("goku_LLH",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.HEAVY },
+                        new AttackData[]{
+                                new AttackData("goku_jab",      5, 3,  7,  5,  8),
+                                new AttackData("goku_jab2",     4, 3,  6,  5,  8),
+                                new AttackData("goku_launcher", 8, 4, 12, 15, 20,
+                                        false, false, true, false, 0.0, 15.0)
+                        },
+                        "light_launcher"
+                ),
+
+                // H — smash singolo
+                new ComboRoute("goku_H",
+                        new int[]{ ComboRoute.HEAVY },
+                        new AttackData[]{
+                                new AttackData("goku_smash", 7, 4, 10, 12, 12)
+                        },
+                        "heavy_1"
+                ),
+
+                // L → L → L — versione aerea
+                new ComboRoute("goku_LLL_air",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_air_jab",  4, 3, 6, 5,  8),
+                                new AttackData("goku_air_jab2", 4, 3, 6, 5,  8),
+                                new AttackData("goku_air_kick", 5, 4, 8, 8, 10)
+                        },
+                        "air_light_3",
+                        false, true, false  // requiresAura=false, requiresAir=true
+                ),
+
+                // L → L → H — launcher aereo
+                new ComboRoute("goku_LLH_air",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.HEAVY },
+                        new AttackData[]{
+                                new AttackData("goku_air_jab",     4, 3,  6,  5,  8),
+                                new AttackData("goku_air_jab2",    4, 3,  6,  5,  8),
+                                new AttackData("goku_air_smash",   7, 4, 10, 12, 18,
+                                        false, false, false, true, 0.0, 15.0)
+                        },
+                        "air_heavy_launcher",
+                        false, true, false
+                ),
+
+                // Surprise Attack — L unblockable (solo con Aura)
+                new ComboRoute("goku_surprise",
+                        new int[]{ ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_surprise", 3, 5, 10, 8, 12,
+                                        false, true, false, false, 0.0, 20.0)
+                        },
+                        "surprise",
+                        true, false, false  // requiresAura=true
+                )
+        };
+    }
+
+    // =============================================
+    // HITBOX SPECIAL (Kamehameha)
+    // =============================================
+    @Override
+    public Rectangle getSpecialHitbox() { return null; } // gestita dai proiettili
 
     @Override
-    public Rectangle getAttackHitbox() {
-        if (!isAttacking) return null;
-
-        int reach = 0, boxHeight = (int)(20 * scale), offsetY = (int)(20 * scale);
-
-        if (attackType == 1 || attackType == 4) {
-            reach = (int)(36 * scale); offsetY = (int)(15 * scale);
-        } else if (attackType == 2 || attackType == 3) {
-            reach = (int)(30 * scale); offsetY = (int)(35 * scale);
-        } else if (attackType == 6) {
-            if (attackTimer <= SPECIAL_CHARGE) return null;
-            reach = (int)(GamePanel.SCREEN_WIDTH * scale);
-            boxHeight = (int)(40 * scale);
-            offsetY = (int)(20 * scale);
-        } else return null;
-
+    public Rectangle getUltimateHitbox() {
+        if (specialTimer <= SPECIAL_CHARGE) return null;
+        int reach   = (int)(GamePanel.SCREEN_WIDTH * scale);
+        int boxH    = (int)(40 * scale);
+        int offsetY = (int)(20 * scale);
         int hX = facingRight ? x + baseWidth : x - reach;
-        int hY = y + offsetY;
-        return new Rectangle(hX, hY, reach, boxHeight);
+        return new Rectangle(hX, y + offsetY, reach, boxH);
     }
 
+    // =============================================
+    // VFX
+    // =============================================
     @Override
     protected void spawnKiBlastVFX() {
         int handX = facingRight ? x + (int)(40 * scale) : x - (int)(10 * scale);
         int handY = y + (int)(25 * scale);
-        activeEffects.add(new VisualEffect(kiBlastImage, handX, handY, new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60}, 7, 0.6 * scale));
+        activeEffects.add(new VisualEffect(kiBlastImage, handX, handY,
+                new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60},
+                7, 0.6 * scale));
     }
 
     @Override
     protected void fireKiBlastProjectile() {
-        activeBlasts.add(new KiBlastProjectile(facingRight ? x + (int)(50 * scale) : x - (int)(10 * scale), y + (int)(25 * scale), facingRight, kiBlastImage, scale));
+        activeBlasts.add(new KiBlastProjectile(
+                facingRight ? x + (int)(50 * scale) : x - (int)(10 * scale),
+                y + (int)(25 * scale), facingRight, kiBlastImage, scale));
     }
 
     @Override
-    protected void onSpecialAttackHit(Fighter opponent) {
-        // Posizioniamo l'esplosione al centro dell'avversario
+    protected void onSpecialHit(Fighter opponent) {}
+
+    @Override
+    protected void onUltimateHit(Fighter opponent) {
         int expX = opponent.getX() + (opponent.baseWidth / 2);
         int expY = opponent.y + (opponent.baseHeight / 2);
-
-        // Aggiungiamo l'effetto fumo usando il nuovo file universale
         opponent.activeEffects.add(new VisualEffect(
-                ResourceManager.getInstance().commonVfx, // Il nuovo file caricato
-                expX, expY,
-                new int[]{0, 200},   // X1 e X2 che mi hai dato
-                new int[]{0, 0},     // Y è sempre 0 per entrambi
-                new int[]{142, 142}, // Larghezza (W)
-                new int[]{120, 120}, // Altezza (H)
-                6,                   // Velocità dell'animazione
-                1.2 * scale          // Scala (leggermente più grande per il Final Flash)
-        ));
+                ResourceManager.getInstance().commonVfx, expX, expY,
+                new int[]{0, 200}, new int[]{0, 0},
+                new int[]{142, 142}, new int[]{120, 120},
+                6, 1.2 * scale));
     }
 
+    // =============================================
+    // UPDATE
+    // =============================================
     @Override
     public void update(KeyHandler keyH, Fighter opponent) {
         super.update(keyH, opponent);
 
-        if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
+        // Beam end per Kamehameha
+        if (state == FighterState.ULTIMATE_ACTIVE) {
             beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
-            Rectangle hitbox = getAttackHitbox();
-            if (hitbox != null && opponent != null && hitbox.intersects(opponent.getBounds())) {
+            Rectangle hitbox = getUltimateHitbox();
+            if (hitbox != null && opponent != null && hitbox.intersects(opponent.getBounds()))
                 beamEndX = facingRight ? opponent.getX() : opponent.getX() + opponent.baseWidth;
-            }
         }
 
-        if (isMoving && !isJumping && !isCrouching && !isFlying && !isAttacking) {
+        // Animazione walking
+        if (state == FighterState.WALKING) {
             spriteCounter++;
-            if (spriteCounter > (isAuraActive ? 3 : 5)) {
+            if (spriteCounter > (state == FighterState.AURA_ACTIVE ? 3 : 5)) {
                 spriteNum++;
                 if (spriteNum > 6) spriteNum = 1;
                 spriteCounter = 0;
             }
-        } else if (isJumping) {
+        } else if (state == FighterState.JUMPING) {
             spriteCounter++;
             if (spriteCounter > 8) {
                 spriteNum++;
-                if (spriteNum > 7) spriteNum = 7; // si ferma all'ultimo frame
+                if (spriteNum > 7) spriteNum = 7;
                 spriteCounter = 0;
             }
         } else {
@@ -129,118 +232,131 @@ public class Goku extends Fighter {
         }
     }
 
-
+    // =============================================
+    // DRAW — switch sulla FSM
+    // =============================================
     @Override
     public void draw(Graphics2D g2d) {
-        // Valori di default (Stance base) usando le variabili ereditate!
+
+        // Default: stance base
         srcX = 455; srcY = 553; srcW = 72; srcH = 163;
 
+        switch (state) {
 
-
-        if (hp <= 0) {
-            srcW = 90; srcH = 91; srcY = 1450;
-            // Aggiungiamo lo 0 come primo frame
-            int[] koX = {0, 187, 300, 400, 505, 600, 710};
-            srcX = koX[Math.min(endFrame - 1, 6)]; // Il limite dell'indice ora è 6
-        }
-        else if (isWinner) {
-            if (isFlying) { srcW = 40; srcH = 100; srcY = 1642; int[] winFlyX = {0, 46}; srcX = winFlyX[endFrame - 1]; }
-            else { srcW = 33; srcH = 90; srcY = 1649; int[] winGndX = {89, 128}; srcX = winGndX[endFrame - 1]; }
-        }
-        else if (isHit) {
-            // Entrambi i frame sono sulla riga del KO (1450)
-            srcY = 1450;
-            srcW = 90;
-            srcH = 91;
-
-            // hitTimer va da 1 a 20
-            if (hitTimer <= 10) {
-                srcX = 0;   // Frame 1: Colpo ricevuto (impatto secco)
-            } else {
-                srcX = 300; // Frame 2: Reazione al colpo (rinculo)
+            case KO -> {
+                srcW = 90; srcH = 91; srcY = 1450;
+                int[] koX = {0, 187, 300, 400, 505, 600, 710};
+                srcX = koX[Math.min(endFrame - 1, 6)];
             }
-        }
-        else if (isChargingAura) {
-            // NUOVE COORDINATE PRECISE
-            srcW = 42;
-            srcH = 90;
-            srcX = 0;
-            srcY = 821;
 
-            // Manteniamo il bellissimo effetto vibrazione/jitter
-            shiftX += (int) (Math.random() * 3) - 1;
-        }
+            case WINNER -> {
+                if (isFlying()) {
+                    srcW = 40; srcH = 100; srcY = 1642;
+                    int[] wfX = {0, 46};
+                    srcX = wfX[Math.min(endFrame - 1, 1)];
+                } else {
+                    srcW = 33; srcH = 90; srcY = 1649;
+                    int[] wgX = {89, 128};
+                    srcX = wgX[Math.min(endFrame - 1, 1)];
+                }
+            }
 
-        else if (isBlocking) {
-            int blockFrame = Math.min(blockActiveTimer / 5, 2);
-            if (isFlying || isJumping) {
-                srcY = 1268; srcH = 140; srcW = 70;
-                int[] blockX = {7, 81, 163};
-                srcX = blockX[blockFrame];
-            } else {
+            case HIT_STUN, TUMBLING -> {
+                srcY = 1450; srcW = 90; srcH = 91;
+                srcX = (hitTimer <= hitstunDuration / 2) ? 0 : 300;
+            }
+
+            case CHARGING_KI -> {
+                srcW = 42; srcH = 90; srcX = 0; srcY = 821;
+                shiftX += (int)(Math.random() * 3) - 1;
+            }
+
+            case AURA_ACTIVE -> {
+                // Usa la stance ma con aura visiva attiva
+                srcX = 455; srcY = 553; srcW = 72; srcH = 163;
+            }
+
+            case BLOCKING -> {
+                int blockFrame = Math.min(blockActiveTimer / 5, 2);
                 srcY = 1015; srcH = 132; srcW = 95;
-                int[] blockX = {3, 102, 201};
-                srcX = blockX[blockFrame];
+                int[] bX = {3, 102, 201};
+                srcX = bX[blockFrame];
             }
-        }
-        else if (isTeleporting) { srcW = 30; srcH = 91; srcY = 1748; int[] tX = {3, 38, 72, 111, 147, 185}; srcX = tX[Math.min(teleportFrame - 1, 5)]; }
-        else if (isAttacking) {
-            if (attackType == 1) { srcY = 442; srcW = 87; srcH = 85; srcX = (attackTimer <= PUNCH_STARTUP) ? 0 : 130; }
-            else if (attackType == 2) { srcY = 439; srcW = 80; srcH = 89; srcX = (attackTimer <= KICK_STARTUP) ? 242 : 325; }
-            else if (attackType == 3) { srcY = 536; srcW = 65; srcH = 88; srcX = (attackTimer <= KICK_STARTUP) ? 0 : 100; }
-            else if (attackType == 4) { srcY = 535; srcW = 64; srcH = 85; srcX = (attackTimer <= PUNCH_STARTUP) ? 204 : 300; }
-            else if (attackType == 5) { srcY = 972; srcW = 65; srcH = 84; srcX = (attackTimer <= 7) ? 202 : 300; }
-            else if (attackType == 6) {
-                if (attackTimer <= SPECIAL_CHARGE) { srcY = 1065; srcW = 54; srcH = 77; srcX = 0; }
-                else { srcY = 1065; srcW = 54; srcH = 77; srcX = 59; }
+
+            case BLOCKING_AIR -> {
+                int blockFrame = Math.min(blockActiveTimer / 5, 2);
+                srcY = 1268; srcH = 140; srcW = 70;
+                int[] bX = {7, 81, 163};
+                srcX = bX[blockFrame];
             }
-        }
-        else if (isCrouching) {
-            srcY = 1411; srcH = 162; srcW = 99;
-            srcX = 8; // frame 1 — preparazione salto
-        }
-        else if (isFlying) {
-            srcY = 8691; srcH = 156; srcW = 104;
-            if      (flyNum == 1) srcX = 0;
-            else if (flyNum == 2) srcX = 150;
-            else if (flyNum == 3) srcX = 300;
-            else if (flyNum == 4) srcX = 450;
-            else if (flyNum == 5) srcX = 600;
-        }
-        else if (isJumping) {
-            srcY = 1411; srcH = 162; srcW = 99;
-            int[] jumpX = {122, 224, 328, 435, 550, 670, 780};
-            srcX = jumpX[Math.min(spriteNum - 1, 6)];
-        }
-        else if (isMoving) {
-            srcY = 885; srcH = 125; srcW = 106;
-            int[] walkX = {3, 112, 221, 329, 437, 546};
-            srcX = walkX[spriteNum - 1];
+
+            case TELEPORTING -> {
+                srcW = 30; srcH = 91; srcY = 1748;
+                int[] tX = {3, 38, 72, 111, 147, 185};
+                srcX = tX[Math.min(teleportFrame - 1, 5)];
+            }
+
+            case COMBO_LIGHT, COMBO_HEAVY -> {
+                if (activeRoute != null) {
+                    drawComboSprite(g2d);
+                }
+            }
+
+            case SPECIAL_STARTUP, SPECIAL_ACTIVE -> {
+                srcY = 972; srcW = 65; srcH = 84;
+                srcX = (specialTimer <= 7) ? 202 : 300;
+            }
+
+            case ULTIMATE_STARTUP -> {
+                srcY = 1065; srcW = 54; srcH = 77; srcX = 0;
+            }
+
+            case ULTIMATE_ACTIVE -> {
+                srcY = 1065; srcW = 54; srcH = 77; srcX = 59;
+            }
+
+            case CROUCHING -> {
+                srcY = 1411; srcH = 162; srcW = 99; srcX = 8;
+            }
+
+            case JUMPING -> {
+                srcY = 1411; srcH = 162; srcW = 99;
+                int[] jumpX = {122, 224, 328, 435, 550, 670, 780};
+                srcX = jumpX[Math.min(spriteNum - 1, 6)];
+            }
+
+            case FLYING_IDLE -> {
+                srcY = 8691; srcH = 156; srcW = 104; srcX = 0;
+            }
+            case FLYING_FORWARD -> {
+                srcY = 8691; srcH = 156; srcW = 104; srcX = 150;
+            }
+            case FLYING_FORWARD_FULL -> {
+                srcY = 8691; srcH = 156; srcW = 104; srcX = 300;
+            }
+            case FLYING_BACKWARD -> {
+                srcY = 8691; srcH = 156; srcW = 104; srcX = 450;
+            }
+            case FLYING_BACKWARD_FULL -> {
+                srcY = 8691; srcH = 156; srcW = 104; srcX = 600;
+            }
+
+            case WALKING -> {
+                srcY = 885; srcH = 125; srcW = 106;
+                int[] walkX = {3, 112, 221, 329, 437, 546};
+                srcX = walkX[Math.min(spriteNum - 1, 5)];
+            }
+
+            default -> {
+                // IDLE — stance base già impostata sopra
+            }
         }
 
-        // --- MAGIA! Chiamiamo il rendering universale della classe padre ---
         drawFighterSprite(g2d);
 
-        // DISEGNO KAMEHAMEHA (Ora riutilizza drawY, drawW, shiftX dal metodo padre)
-        if (isAttacking && attackType == 6 && attackTimer > SPECIAL_CHARGE) {
-            int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64, headSrcX = 339, headSrcY = 1069, headW = 86, headH = 64;
-            int drawBodyH = (int)(bodyH * scale), drawHeadW = (int)(headW * scale), drawHeadH = (int)(headH * scale);
-            int beamY = drawY + (int)(6 * scale);
-            int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? GamePanel.SCREEN_WIDTH : 0);
-
-            if (facingRight) {
-                int startX = x + shiftX + drawW;
-                if (targetX - drawHeadW > startX) {
-                    g2d.drawImage(spriteSheet, startX, beamY, targetX - drawHeadW, beamY + drawBodyH, bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
-                    g2d.drawImage(spriteSheet, targetX - drawHeadW, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                } else g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-            } else {
-                int startX = x + shiftX;
-                if (targetX + drawHeadW < startX) {
-                    g2d.drawImage(spriteSheet, startX, beamY, targetX + drawHeadW, beamY + drawBodyH, bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
-                    g2d.drawImage(spriteSheet, targetX + drawHeadW, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-                } else g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH, headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
-            }
+        // Kamehameha beam
+        if (state == FighterState.ULTIMATE_ACTIVE) {
+            drawKamehameha(g2d);
         }
 
         for (VisualEffect eff : activeEffects) eff.draw(g2d);
@@ -248,5 +364,81 @@ public class Goku extends Fighter {
 
         drawPlayerPin(g2d, x + shiftX, drawY, drawW);
         drawUniversalHUD(g2d, "KAMEHAMEHA");
+
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+    }
+
+    // =============================================
+    // HELPER — sprite della combo in base alla route
+    // =============================================
+    private void drawComboSprite(Graphics2D g2d) {
+        String key = activeRoute.animationKey;
+        AttackData atk = activeRoute.attacks[comboStep];
+        boolean isStartup = (attackTimer <= atk.startup);
+
+        switch (key) {
+            case "light_1", "light_2", "light_3", "light_launcher" -> {
+                // Attacchi leggeri a terra
+                if (comboStep == 2 && key.equals("light_launcher")) {
+                    // Launcher = calcio alto
+                    srcY = 439; srcW = 80; srcH = 89;
+                    srcX = isStartup ? 242 : 325;
+                } else {
+                    // Jab/pugno
+                    srcY = 442; srcW = 87; srcH = 85;
+                    srcX = isStartup ? 0 : 130;
+                }
+            }
+            case "heavy_1" -> {
+                srcY = 439; srcW = 80; srcH = 89;
+                srcX = isStartup ? 242 : 325;
+            }
+            case "air_light_3", "air_heavy_launcher" -> {
+                // Attacchi aerei
+                srcY = 536; srcW = 65; srcH = 88;
+                srcX = isStartup ? 0 : 100;
+            }
+            case "surprise" -> {
+                srcY = 442; srcW = 87; srcH = 85;
+                srcX = isStartup ? 0 : 130;
+            }
+        }
+    }
+
+    // =============================================
+    // HELPER — disegno beam Kamehameha
+    // =============================================
+    private void drawKamehameha(Graphics2D g2d) {
+        int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64;
+        int headSrcX = 339, headSrcY = 1069, headW = 86,  headH = 64;
+        int drawBodyH = (int)(bodyH * scale);
+        int drawHeadW = (int)(headW * scale);
+        int drawHeadH = (int)(headH * scale);
+        int beamY  = drawY + (int)(6 * scale);
+        int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? GamePanel.SCREEN_WIDTH : 0);
+
+        if (facingRight) {
+            int startX = x + shiftX + drawW;
+            if (targetX - drawHeadW > startX) {
+                g2d.drawImage(spriteSheet, startX, beamY, targetX - drawHeadW, beamY + drawBodyH,
+                        bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
+                g2d.drawImage(spriteSheet, targetX - drawHeadW, beamY, targetX, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+            } else {
+                g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+            }
+        } else {
+            int startX = x + shiftX;
+            if (targetX + drawHeadW < startX) {
+                g2d.drawImage(spriteSheet, startX, beamY, targetX + drawHeadW, beamY + drawBodyH,
+                        bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
+                g2d.drawImage(spriteSheet, targetX + drawHeadW, beamY, targetX, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+            } else {
+                g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+            }
+        }
     }
 }

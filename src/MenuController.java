@@ -26,7 +26,7 @@ public class MenuController {
                 gp.mainMenuOption = (gp.mainMenuOption + 4) % 5;
                 gp.menuCooldown = gp.COOLDOWN_TIME;
             }
-            if (gp.keyH.p1_punch || gp.keyH.enterPressed) {
+            if (gp.keyH.p1_light || gp.keyH.enterPressed) {
                 if (gp.mainMenuOption == 0) gp.gameState = 2; // Z BATTLE VS
                 else if (gp.mainMenuOption == 2) gp.gameState = 6; // COMMANDS
                 else if (gp.mainMenuOption == 3) gp.gameState = 7; // CREDITS
@@ -49,7 +49,7 @@ public class MenuController {
         if (!gp.p1Ready && gp.menuCooldown == 0) {
             if (gp.keyH.p1_right) { gp.p1Cursor = (gp.p1Cursor + 1) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
             if (gp.keyH.p1_left) { gp.p1Cursor = (gp.p1Cursor + 4) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p1_punch) { gp.p1Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
+            if (gp.keyH.p1_light) { gp.p1Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
         }
         if (gp.p1Ready && gp.keyH.p1_block && gp.menuCooldown == 0) {
             gp.p1Ready = false; gp.menuCooldown = gp.COOLDOWN_TIME;
@@ -59,7 +59,7 @@ public class MenuController {
         if (!gp.p2Ready && gp.menuCooldown == 0) {
             if (gp.keyH.p2_right) { gp.p2Cursor = (gp.p2Cursor + 1) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
             if (gp.keyH.p2_left) { gp.p2Cursor = (gp.p2Cursor + 4) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p2_punch) { gp.p2Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
+            if (gp.keyH.p2_light) { gp.p2Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
         }
         if (gp.p2Ready && gp.keyH.p2_block && gp.menuCooldown == 0) {
             gp.p2Ready = false; gp.menuCooldown = gp.COOLDOWN_TIME;
@@ -104,7 +104,7 @@ public class MenuController {
             }
 
             // --- Tasto per avviare la battaglia ---
-            if (gp.keyH.p1_punch) {
+            if (gp.keyH.p1_light) {
                 gp.initBattle();
                 gp.gameState = 4;
                 gp.stateTimer = 0;
@@ -113,7 +113,7 @@ public class MenuController {
     }
 
     private void updateCommandsOrCredits() {
-        if (gp.menuCooldown == 0 && (gp.keyH.p1_punch || gp.keyH.p1_block)) {
+        if (gp.menuCooldown == 0 && (gp.keyH.p1_light || gp.keyH.p1_block)) {
             gp.gameState = 1;
             gp.menuCooldown = gp.COOLDOWN_TIME;
         }

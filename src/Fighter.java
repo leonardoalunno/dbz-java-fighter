@@ -10,268 +10,359 @@ import java.util.ArrayList;
 
 public abstract class Fighter {
 
+    // =============================================
+    // POSIZIONE E IDENTITA'
+    // =============================================
     protected int x, y;
     protected int playerID;
     protected BufferedImage spriteSheet;
     protected BufferedImage kiBlastImage;
     protected BufferedImage auraImage;
-    protected int auraFrame = 0;
-    protected int auraAnimTimer = 0;
-
-    protected int hudSrcY = 0;
-    protected int portraitSrcY = 0; // Y del ritratto nell'hud.png (300 per personaggio)
+    protected int portraitSrcY = 0;
     public double scale = 1.0;
 
+    // =============================================
+    // STATISTICHE BASE
+    // =============================================
     public int hp = 100;
     protected int maxHP = 100;
     protected int speed = 4;
     protected int baseWidth = 48;
     protected int baseHeight = 86;
-
     public Color auraColor = Color.WHITE;
 
+    // =============================================
+    // FISICA
+    // =============================================
     protected boolean facingRight;
     protected int groundY;
-
-    public int knockbackSpeed = 0;
-    protected int customOffsetX = 0;
-
-    // --- VARIABILI DI STATO ---
-    protected boolean isMoving = false, isJumping = false, isCrouching = false;
-    protected boolean isFlying = false, isBlocking = false, isAttacking = false;
-    protected boolean isTeleporting = false, isChargingAura = false, isAuraActive = false;
-    protected boolean isWinner = false;
-
-    public float alpha = 1.0f;
-    public int teleportTimer = 0;
-
-    protected int spriteCounter = 0, spriteNum = 1;
-    protected int crouchTimer = 0, flyCooldown = 0, flyNum = 1;
-    protected int flyMoveTimer = 0;
-    protected int attackTimer = 0, attackType = 0;
-    protected int endFrame = 1, endTimer = 0;
-
-    protected int ATTACK_DURATION = 15;
-    protected int PUNCH_STARTUP = 5;
-    protected int KICK_STARTUP = 7;
-    protected int SPECIAL_CHARGE = 40;
-    protected int SPECIAL_DURATION = 90;
-    protected final int CROUCH_DURATION = 3;
-
     protected double velocityY = 0;
     protected double gravity = 0.5;
     protected double jumpStrength = -12;
+    protected final int CROUCH_DURATION = 3;
+    protected int crouchTimer = 0;
 
-    protected final int DASH_DISTANCE = 150;
+    // =============================================
+    // FSM — Stato corrente e precedente
+    // =============================================
+    protected FighterState state     = FighterState.IDLE;
+    protected FighterState prevState = FighterState.IDLE;
+
+    // =============================================
+    // INPUT
+    // =============================================
+    protected boolean inUp, inDown, inLeft, inRight;
+    protected boolean inLight, inHeavy, inSpecial, inUltimate;
+    protected boolean inBlock, inFly, inCharge;
+    protected boolean prevUp, prevLeft, prevRight, prevDown;
+
+    // =============================================
+    // INPUT BUFFER — Neo Combo
+    // =============================================
+    protected InputBuffer inputBuffer;
+
+    // =============================================
+    // COMBO SYSTEM
+    // =============================================
+    protected ComboRoute[] comboRoutes;   // definite nelle subclass
+    protected ComboRoute   activeRoute;   // combo in esecuzione
+    protected int comboStep    = 0;       // posizione nella sequenza
+    protected int attackTimer  = 0;       // frame dentro l'AttackData corrente
+    protected int comboCount   = 0;       // hit totali nella catena
+    protected int comboWindowTimer = 0;   // finestra per continuare la combo
+    protected final int COMBO_WINDOW = 30;
+    protected double comboDamageScale = 1.0;
+    protected boolean hasHit = false;     // ha già colpito in questo step
+
+    // =============================================
+    // ATTACCO SPECIALE / ULTIMATE
+    // =============================================
+    protected double specialEnergy  = 0;
+    protected double MAX_SPECIAL_ENERGY = 2400;
+    protected double specialDrainRate;
+    protected int SPECIAL_CHARGE   = 40;
+    protected int SPECIAL_DURATION = 90;
+    protected int specialTimer     = 0;   // frame dentro lo special/ultimate
+
+    // =============================================
+    // KI SYSTEM
+    // =============================================
+    protected double ki         = 0;
+    protected double MAX_KI     = 300.0;
+    protected double kiRegen    = 0.5;
+    protected double kiBlastKiCost  = 80.0;
+    protected double kiOnHitReward  = 15.0;
+    protected int kiBreakTimer  = 0;
+    protected final int KI_BREAK_DURATION = 60;
+    // Carica manuale: +kiChargeRate per frame tenendo C
+    protected double kiChargeRate = 3.0;
+
+    // =============================================
+    // AURA SYSTEM
+    // =============================================
+    protected int    auraFrame      = 0;
+    protected int    auraAnimTimer  = 0;
+    protected int    auraChargeTimer = 0;
+    protected final int AURA_CHARGE_DURATION = 30;
+    protected final int AURA_DURATION        = 600;
+    protected double auraEnergy     = 0;
+    protected double MAX_AURA_ENERGY = 1200;
+    protected double AURA_DRAIN_RATE = MAX_AURA_ENERGY / (double)600;
+
+    // =============================================
+    // GUARD SYSTEM
+    // =============================================
+    protected int guardHealth        = 100;
+    protected final int MAX_GUARD_HEALTH     = 100;
+    protected int guardCrushTimer    = 0;
+    protected final int GUARD_CRUSH_DURATION = 45;
+    protected final int PERFECT_GUARD_WINDOW = 8;
+    protected int blockActiveTimer   = 0;
+    protected boolean isCountering   = false;
+    protected int counterWindow      = 0;
+    protected final int COUNTER_WINDOW_DURATION = 22;
+    protected int blockTimer         = 0;
+
+    // =============================================
+    // KNOCKBACK & HITSTUN
+    // =============================================
+    public int knockbackSpeed    = 0;
+    protected int hitstunDuration = 20;
+    protected int hitTimer        = 0;
+    public boolean wallBounced    = false;
+    protected int invincibleTimer = 0;
+
+    // =============================================
+    // Z-CANCEL
+    // =============================================
+    protected final double Z_CANCEL_COST = 60.0;
+    // Z-Cancel disponibile dopo il primo hit della combo
+    protected boolean zCancelAvailable = false;
+
+    // =============================================
+    // VOLO
+    // =============================================
+    protected int flyNum       = 1;
+    protected int flyMoveTimer = 0;
+    protected int flyCooldown  = 0;
+
+    // =============================================
+    // TELEPORT
+    // =============================================
+    protected final int DASH_DISTANCE   = 150;
     protected final int DOUBLE_TAP_WINDOW = 15;
     protected int tapTimerW = 0, tapTimerA = 0, tapTimerS = 0, tapTimerD = 0;
-    protected boolean prevW = false, prevA = false, prevS = false, prevD = false;
     protected int teleportPhase = 1, teleportFrame = 6, teleportCounter = 0;
     protected int targetOffsetX = 0, targetOffsetY = 0;
 
-    protected int auraChargeTimer = 0;
-    protected final int AURA_CHARGE_DURATION = 30;
-    protected final int AURA_DURATION = 600;
-    protected double auraEnergy = 0;
-    protected double MAX_AURA_ENERGY = 1200;
-    protected double AURA_DRAIN_RATE = MAX_AURA_ENERGY / AURA_DURATION;
+    // =============================================
+    // FINE MATCH
+    // =============================================
+    protected int endFrame = 1, endTimer = 0;
 
-    protected double specialEnergy = 0;
-    protected double MAX_SPECIAL_ENERGY = 2400;
-    protected double specialDrainRate;
+    // =============================================
+    // DANNI
+    // =============================================
+    protected int kiBlastDamage = 10;
+    protected int specialDamage = 35;
 
-    // Mantenuti per compatibilità con le sottoclassi (non usati nella logica di gioco)
-    protected int kiShotsAvailable = 3;
-    protected int MAX_KI_SHOTS = 3;
-
-    protected int shotCooldown = 0;
-
-    protected int punchDamage = 5, kickDamage = 8;
-    protected int kiBlastDamage, specialDamage;
-    protected boolean hasHit = false;
-
-    protected boolean isHit = false;
-    protected int hitTimer = 0;
-
-    protected boolean isInvincible = false;
-    protected int invincibleTimer = 0;
-
-    protected int blockTimer = 0;
-
-    // --- VARIABILI DI RENDERING UNIVERSALI ---
+    // =============================================
+    // ANIMAZIONE SPRITE
+    // =============================================
     protected int srcX, srcY, srcW, srcH;
     protected int drawW, drawH, drawY, shiftX;
+    protected int spriteCounter = 0, spriteNum = 1;
+    protected int customOffsetX = 0;
 
-    // --- INPUT UNIVERSALI ---
-    protected boolean inUp, inDown, inLeft, inRight, inPunch, inKick, inKiBlast, inSpecial, inFly, inAura, inBlock;
+    // =============================================
+    // EFFETTI VISIVI
+    // =============================================
+    protected ArrayList<VisualEffect>      activeEffects = new ArrayList<>();
+    protected ArrayList<KiBlastProjectile> activeBlasts  = new ArrayList<>();
 
-    protected ArrayList<VisualEffect> activeEffects = new ArrayList<>();
-    protected ArrayList<KiBlastProjectile> activeBlasts = new ArrayList<>();
-
-    // =========================================================
-    // SISTEMA 1 — KI: Barra continua che sostituisce i colpi discreti
-    //
-    // 'ki' si rigenera passivamente ogni frame (kiRegen/frame).
-    // Con l'Aura attiva la rigenerazione raddoppia.
-    // Sparare un Ki Blast costa 'kiBlastKiCost'.
-    // Se ki arriva a 0 si attiva il Ki Break (penalità KI_BREAK_DURATION frame):
-    //   durante il Break è impossibile sparare, usare la special o fare counter.
-    // =========================================================
-    protected double ki = 0;
-    protected double MAX_KI = 300.0;
-    protected double kiBlastKiCost = 80.0;
-    protected double kiRegen = 0.5;
-    protected int kiBreakTimer = 0;
-    protected final int KI_BREAK_DURATION = 60;
-
-    // =========================================================
-    // SISTEMA 2 — COMBO: Catena di colpi con scaling del danno
-    //
-    // Ogni colpo che atterra entro COMBO_WINDOW frame dal precedente
-    // incrementa comboCount.
-    // Il moltiplicatore comboDamageScale scende dell'8% per ogni hit
-    // oltre il primo, con un minimo del 30%.
-    // =========================================================
-    protected int comboCount = 0;
-    protected int comboTimer = 0;
-    protected final int COMBO_WINDOW = 28;
-    protected double comboDamageScale = 1.0;
-
-    // =========================================================
-    // SISTEMA 3 — GUARDIA & COUNTER: Timing e Guard Crush
-    //
-    // PERFECT GUARD: se si blocca entro PERFECT_GUARD_WINDOW frame
-    //   dall'inizio di un attacco fisico in arrivo → danno azzerato,
-    //   si apre la finestra Counter (COUNTER_WINDOW_DURATION frame).
-    // COUNTER: il prossimo attacco di questo fighter fa 1.5x danno.
-    // GUARD HEALTH: si consuma bloccando colpi fisici.
-    //   A 0 scatta il Guard Crush: stordimento GUARD_CRUSH_DURATION frame.
-    //   Dopo il crush, guardHealth si ripristina a metà.
-    // =========================================================
-    protected int guardHealth = 100;
-    protected final int MAX_GUARD_HEALTH = 100;
-    protected boolean isGuardCrushed = false;
-    protected int guardCrushTimer = 0;
-    protected final int GUARD_CRUSH_DURATION = 45;
-    protected final int PERFECT_GUARD_WINDOW = 8;
-    protected int blockActiveTimer = 0;
-    protected boolean isCountering = false;
-    protected int counterWindow = 0;
-    protected final int COUNTER_WINDOW_DURATION = 22;
-
-    // =========================================================
-    // SISTEMA 4 — KNOCKBACK & HITSTUN: Stordimento scalato e Wall Bounce
-    //
-    // hitstunDuration: calcolato dal danno ricevuto (12–55 frame).
-    //   Sostituisce il vecchio valore fisso di 20 frame.
-    // wallBounced: true se il fighter ha colpito un bordo schermo
-    //   durante il knockback → permette un follow-up dell'avversario.
-    // isTumbling: true se hp < 20% del massimo → animazione di barcollamento
-    //   (usata dalle sottoclassi in draw() se vogliono distinguerla).
-    // =========================================================
-    protected int hitstunDuration = 20;
-    public boolean wallBounced = false;
-    protected boolean isTumbling = false;
-
-    // =========================================================
+    // =============================================
     // COSTRUTTORE
-    // =========================================================
+    // =============================================
     public Fighter(int x, int y, int playerID, BufferedImage spriteSheet) {
-        this.x = x;
-        this.y = y;
-        this.playerID = playerID;
+        this.x          = x;
+        this.y          = y;
+        this.playerID   = playerID;
         this.spriteSheet = spriteSheet;
+        this.inputBuffer = new InputBuffer();
     }
 
-    public int getX() { return x; }
-    public Rectangle getBounds() { return new Rectangle(x, y, baseWidth, baseHeight); }
-
-    public abstract Rectangle getAttackHitbox();
+    // =============================================
+    // METODI ASTRATTI — implementati nelle subclass
+    // =============================================
     public abstract void draw(Graphics2D g2d);
-
+    public abstract ComboRoute[] defineComboRoutes();
+    public abstract Rectangle getSpecialHitbox();
+    public abstract Rectangle getUltimateHitbox();
     protected abstract void spawnKiBlastVFX();
     protected abstract void fireKiBlastProjectile();
-    protected abstract void onSpecialAttackHit(Fighter opponent);
+    protected abstract void onSpecialHit(Fighter opponent);
+    protected abstract void onUltimateHit(Fighter opponent);
 
-    // =========================================================
-    // takeDamage — Riscritta con i 4 sistemi integrati
-    // =========================================================
-    public void takeDamage(int amount, int appliedKnockback, boolean isEnergyAttack) {
-        if (isInvincible) return;
-        if (isGuardCrushed) return;
-        // Blocca colpi doppi nello stesso hitstun, a meno che non sia un wall bounce
-        if (isHit && !wallBounced) return;
+    // =============================================
+    // HELPER FSM — controllo stato
+    // =============================================
+    public boolean isInState(FighterState... states) {
+        for (FighterState s : states) if (this.state == s) return true;
+        return false;
+    }
 
-        if (isBlocking) {
-            // --- GUARDIA PERFETTA ---
-            // Condizioni: attacco fisico, blocco attivato da meno di PERFECT_GUARD_WINDOW frame
-            boolean isPerfectGuard = (blockActiveTimer <= PERFECT_GUARD_WINDOW) && !isEnergyAttack;
+    protected void setState(FighterState newState) {
+        prevState = state;
+        state     = newState;
+    }
 
-            if (isPerfectGuard) {
-                // Nessun danno, finestra counter aperta
+    // =============================================
+    // HELPER — retrocompatibilita' con GamePanel
+    // =============================================
+    public boolean isAttacking() {
+        return isInState(FighterState.COMBO_LIGHT,
+                FighterState.COMBO_HEAVY,
+                FighterState.SPECIAL_STARTUP,
+                FighterState.SPECIAL_ACTIVE,
+                FighterState.ULTIMATE_STARTUP,
+                FighterState.ULTIMATE_ACTIVE);
+    }
+    public boolean isInHitStun()    { return state == FighterState.HIT_STUN;      }
+    public boolean isBlocking()     { return isInState(FighterState.BLOCKING,
+            FighterState.BLOCKING_AIR); }
+    public boolean isFlying()       { return isInState(FighterState.FLYING_IDLE,
+            FighterState.FLYING_FORWARD,
+            FighterState.FLYING_FORWARD_FULL,
+            FighterState.FLYING_BACKWARD,
+            FighterState.FLYING_BACKWARD_FULL); }
+    public boolean isJumping()      { return state == FighterState.JUMPING;        }
+    public boolean isGrounded()     { return isInState(FighterState.IDLE,
+            FighterState.WALKING,
+            FighterState.CROUCHING);   }
+
+    // =============================================
+    // BOUNDS — hitbox fisica del personaggio
+    // =============================================
+    public int getX() { return x; }
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, baseWidth, baseHeight);
+    }
+
+    // =============================================
+    // HITBOX ATTACCO CORRENTE
+    // Usata per il rilevamento colpi nel update()
+    // =============================================
+    public Rectangle getCurrentAttackHitbox() {
+        if (activeRoute == null || comboStep >= activeRoute.length()) return null;
+        AttackData atk = activeRoute.attacks[comboStep];
+
+        // Hitbox attiva solo nella finestra 'active'
+        if (attackTimer < atk.startup || attackTimer >= atk.startup + atk.active)
+            return null;
+
+        int reach    = (int)(40 * scale);
+        int boxH     = (int)(20 * scale);
+        int offsetY  = (int)(20 * scale);
+        int hX = facingRight ? x + baseWidth : x - reach;
+        return new Rectangle(hX, y + offsetY, reach, boxH);
+    }
+
+    // =============================================
+    // START TELEPORT
+    // =============================================
+    protected void startTeleport(int offX, int offY, boolean faceRight) {
+        setState(FighterState.TELEPORTING);
+        teleportPhase   = 1;
+        teleportFrame   = 6;
+        teleportCounter = 0;
+        targetOffsetX   = offX;
+        targetOffsetY   = offY;
+        facingRight     = faceRight;
+    }
+
+    // =============================================
+    // TAKE DAMAGE — integra tutti i sistemi
+    // =============================================
+    public void takeDamage(int amount, int appliedKnockback,
+                           boolean isEnergy, boolean isUnblockable) {
+        // Immunità
+        if (state == FighterState.KO)           return;
+        if (invincibleTimer > 0)                return;
+        if (state == FighterState.GUARD_CRUSHED) return;
+        if (isInHitStun() && !wallBounced)      return;
+
+        // Teleport = i-frames
+        if (state == FighterState.TELEPORTING)  return;
+
+        if (isBlocking() && !isUnblockable) {
+            // --- PERFECT GUARD ---
+            boolean isPerfect = (blockActiveTimer <= PERFECT_GUARD_WINDOW) && !isEnergy;
+            if (isPerfect) {
                 isCountering  = true;
                 counterWindow = COUNTER_WINDOW_DURATION;
-                // Piccola ricompensa: recupero Ki
                 ki = Math.min(MAX_KI, ki + 30);
                 knockbackSpeed = Math.max(1, appliedKnockback / 5);
+                return;
+            }
 
-            } else {
-                // --- GUARDIA NORMALE ---
-                if (isEnergyAttack) {
-                    // Attacchi energetici penetrano parzialmente la guardia
-                    hp -= Math.max(1, amount / 4);
-                }
-                // La guardia si deteriora assorbendo colpi fisici
-                guardHealth -= amount / 2;
-                knockbackSpeed = appliedKnockback / 3;
-                blockTimer++;
+            // --- GUARDIA NORMALE ---
+            if (isEnergy) hp -= Math.max(1, amount / 4);
+            guardHealth   -= amount / 2;
+            knockbackSpeed = appliedKnockback / 3;
+            blockTimer++;
 
-                // --- GUARD CRUSH ---
-                if (guardHealth <= 0) {
-                    guardHealth     = 0;
-                    isGuardCrushed  = true;
-                    guardCrushTimer = 0;
-                    isBlocking      = false;
-                    blockActiveTimer = 0;
-                    isCountering    = false;
-                    counterWindow   = 0;
-                }
+            // --- GUARD CRUSH ---
+            if (guardHealth <= 0) {
+                guardHealth      = 0;
+                blockActiveTimer = 0;
+                isCountering     = false;
+                counterWindow    = 0;
+                setState(FighterState.GUARD_CRUSHED);
+                guardCrushTimer  = 0;
             }
 
         } else {
-            // --- COLPO RICEVUTO SENZA GUARDIA ---
+            // --- COLPO SENZA GUARDIA ---
             hp -= amount;
-            isHit        = true;
-            hitTimer     = 0;
-            wallBounced  = false;
+            if (hp < 0) hp = 0;
 
-            // Hitstun scalato con il danno: min 12, max 55 frame
-            hitstunDuration = Math.max(12, Math.min(55, amount * 2));
+            hitTimer         = 0;
+            wallBounced      = false;
+            hitstunDuration  = Math.max(12, Math.min(55, amount * 2));
+            knockbackSpeed   = appliedKnockback;
 
-            this.knockbackSpeed = appliedKnockback;
-            isAttacking      = false;
-            isChargingAura   = false;
-            isTeleporting    = false;
-            blockTimer       = 0;
             isCountering     = false;
             counterWindow    = 0;
             blockActiveTimer = 0;
+            zCancelAvailable = false;
 
-            // Tumble: hp sotto il 20%
-            isTumbling = (hp > 0 && hp <= (int)(maxHP * 0.20));
+            // Interrompi qualsiasi azione
+            activeRoute  = null;
+            comboStep    = 0;
+            attackTimer  = 0;
+            specialTimer = 0;
+
+            // Launcher — manda in aria
+            if (isGrounded()) {
+                velocityY = -8.0;
+            }
+
+            setState(hp <= 0 ? FighterState.KO : FighterState.HIT_STUN);
+
+            // Tumbling sotto 20% HP
+            if (hp > 0 && hp <= (int)(maxHP * 0.20))
+                setState(FighterState.TUMBLING);
         }
-
-        if (hp < 0) hp = 0;
     }
 
-    protected void startTeleport(int offX, int offY, boolean faceRight) {
-        isTeleporting = true; teleportPhase = 1; teleportFrame = 6; teleportCounter = 0;
-        targetOffsetX = offX; targetOffsetY = offY; facingRight = faceRight;
+    // Overload retrocompatibile (isUnblockable = false di default)
+    public void takeDamage(int amount, int appliedKnockback, boolean isEnergy) {
+        takeDamage(amount, appliedKnockback, isEnergy, false);
     }
 
-    // =========================================================
-    // update — Motore principale aggiornato
-    // =========================================================
+    // =============================================
+    // UPDATE — motore principale
+    // =============================================
     public void update(KeyHandler keyH, Fighter opponent) {
 
         // Aggiornamento effetti visivi
@@ -281,11 +372,10 @@ public abstract class Fighter {
             if (eff.isDead) { activeEffects.remove(i); i--; }
         }
 
-        // --- MORTE ---
-        if (hp <= 0) {
-            isAttacking = false; isChargingAura = false; isAuraActive = false;
-            isBlocking  = false; isGuardCrushed = false; isTumbling   = false;
-            comboCount  = 0;     comboTimer     = 0;
+        // --- KO ---
+        if (state == FighterState.KO) {
+            activeRoute = null; comboStep = 0;
+            inputBuffer.clear();
             if (y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             endTimer++;
             if (endTimer > 10) { if (endFrame < 7) endFrame++; endTimer = 0; }
@@ -293,32 +383,27 @@ public abstract class Fighter {
         }
 
         // --- VINCITORE ---
-        if (opponent != null && opponent.hp <= 0) {
-            isWinner    = true;
-            isAttacking = false; isChargingAura = false; isAuraActive  = false;
-            isBlocking  = false; isGuardCrushed = false;
-            if (!isFlying && y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
+        if (opponent != null && opponent.state == FighterState.KO) {
+            setState(FighterState.WINNER);
+            activeRoute = null; comboStep = 0;
+            inputBuffer.clear();
+            if (!isFlying() && y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             endTimer++;
             if (endTimer > 15) { endFrame = (endFrame == 1) ? 2 : 1; endTimer = 0; }
             return;
-        } else isWinner = false;
+        }
 
-        // =========================================================
-        // SISTEMA 4 — KNOCKBACK con Wall Bounce
-        // =========================================================
+        // --- KNOCKBACK con Wall Bounce ---
         if (knockbackSpeed > 0) {
             x += facingRight ? -knockbackSpeed : knockbackSpeed;
             knockbackSpeed = Math.max(0, knockbackSpeed - 2);
-
             boolean hitLeft  = (x <= 0);
             boolean hitRight = (x >= GamePanel.SCREEN_WIDTH - baseWidth);
-
             if ((hitLeft || hitRight) && !wallBounced && knockbackSpeed > 3) {
-                wallBounced    = true;
-                x              = hitLeft ? 0 : GamePanel.SCREEN_WIDTH - baseWidth;
-                knockbackSpeed = knockbackSpeed / 2 + 3;
-                facingRight    = !facingRight;
-                // Wall bounce accorcia leggermente lo stordimento
+                wallBounced     = true;
+                x               = hitLeft ? 0 : GamePanel.SCREEN_WIDTH - baseWidth;
+                knockbackSpeed  = knockbackSpeed / 2 + 3;
+                facingRight     = !facingRight;
                 hitstunDuration = Math.max(8, hitstunDuration - 6);
             } else {
                 if (x < 0) x = 0;
@@ -326,254 +411,179 @@ public abstract class Fighter {
             }
         }
 
-        // =========================================================
-        // SISTEMA 4 — HITSTUN variabile
-        // =========================================================
-        if (isHit) {
+        // --- HIT STUN ---
+        if (state == FighterState.HIT_STUN || state == FighterState.TUMBLING) {
             hitTimer++;
+            // Gravità durante hitstun
+            if (!isFlying() && y < groundY) {
+                velocityY += gravity; y += (int)velocityY;
+                if (y >= groundY) { y = groundY; velocityY = 0; }
+            }
             if (hitTimer > hitstunDuration) {
-                isHit       = false;
-                wallBounced = false;
-                isInvincible    = true;
-                invincibleTimer = 0;
+                wallBounced      = false;
+                invincibleTimer  = 40;
+                setState(y < groundY ? FighterState.JUMPING : FighterState.IDLE);
             }
+            return;
         }
 
-        if (isInvincible) {
-            invincibleTimer++;
-            if (invincibleTimer > 40) isInvincible = false;
-        }
+        // --- INVINCIBILITA' post-hitstun ---
+        if (invincibleTimer > 0) invincibleTimer--;
 
-        // =========================================================
-        // SISTEMA 3 — GUARD CRUSH timer
-        // =========================================================
-        if (isGuardCrushed) {
+        // --- GUARD CRUSH ---
+        if (state == FighterState.GUARD_CRUSHED) {
             guardCrushTimer++;
-            isBlocking  = false;
-            isAttacking = false;
-            // Gravità durante lo stordimento
-            if (!isFlying && y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
+            if (!isFlying() && y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             if (guardCrushTimer >= GUARD_CRUSH_DURATION) {
-                isGuardCrushed  = false;
-                guardHealth     = MAX_GUARD_HEALTH / 2; // recupero parziale
-                isInvincible    = true;
-                invincibleTimer = 0;
+                guardHealth     = MAX_GUARD_HEALTH / 2;
+                invincibleTimer = 40;
+                setState(FighterState.IDLE);
             }
-            prevW = inUp; prevA = inLeft; prevS = inDown; prevD = inRight;
-            return; // fighter stordito: skip il resto dell'update
+            return;
         }
 
-        // Recupero lento della guardia mentre non si blocca
-        if (!isBlocking && !isHit && guardHealth < MAX_GUARD_HEALTH) {
+        // Recupero guardia passivo
+        if (!isBlocking() && guardHealth < MAX_GUARD_HEALTH)
             guardHealth = Math.min(MAX_GUARD_HEALTH, guardHealth + 1);
+
+        // --- LETTURA INPUT ---
+        inUp      = (playerID == 1) ? keyH.p1_up      : keyH.p2_up;
+        inDown    = (playerID == 1) ? keyH.p1_down    : keyH.p2_down;
+        inLeft    = (playerID == 1) ? keyH.p1_left    : keyH.p2_left;
+        inRight   = (playerID == 1) ? keyH.p1_right   : keyH.p2_right;
+        inLight   = (playerID == 1) ? keyH.p1_light   : keyH.p2_light;
+        inHeavy   = (playerID == 1) ? keyH.p1_heavy   : keyH.p2_heavy;
+        inSpecial = (playerID == 1) ? keyH.p1_special : keyH.p2_special;
+        inUltimate= (playerID == 1) ? keyH.p1_ultimate: keyH.p2_ultimate;
+        inBlock   = (playerID == 1) ? keyH.p1_block   : keyH.p2_block;
+        inFly     = (playerID == 1) ? keyH.p1_fly     : keyH.p2_fly;
+        inCharge  = (playerID == 1) ? keyH.p1_charge  : keyH.p2_charge;
+
+        // Aggiorna buffer input
+        inputBuffer.update(inLight, inHeavy, inSpecial, inUltimate);
+
+        // Facing automatico
+        if (!isAttacking() && state != FighterState.TELEPORTING
+                && state != FighterState.CHARGING_KI && opponent != null)
+            facingRight = (x <= opponent.getX());
+
+        // --- BLOCCO ---
+        boolean wasBlocking = isBlocking();
+        if (inBlock && !isAttacking() && state != FighterState.TELEPORTING
+                && state != FighterState.CHARGING_KI) {
+            boolean inAir = isFlying() || state == FighterState.JUMPING;
+            setState(inAir ? FighterState.BLOCKING_AIR : FighterState.BLOCKING);
+        } else if (isBlocking()) {
+            setState(prevState == FighterState.JUMPING || prevState == FighterState.FLYING_IDLE
+                    ? FighterState.IDLE : FighterState.IDLE);
         }
-
-        isMoving = false;
-
-        // Lettura input
-        inUp      = (playerID == 1) ? keyH.p1_up    : keyH.p2_up;
-        inDown    = (playerID == 1) ? keyH.p1_down  : keyH.p2_down;
-        inLeft    = (playerID == 1) ? keyH.p1_left  : keyH.p2_left;
-        inRight   = (playerID == 1) ? keyH.p1_right : keyH.p2_right;
-        inPunch   = (playerID == 1) ? keyH.p1_punch      : keyH.p2_punch;
-        inKick    = (playerID == 1) ? keyH.p1_kick       : keyH.p2_kick;
-        inKiBlast = (playerID == 1) ? keyH.p1_kiBlast    : keyH.p2_kiBlast;
-        inSpecial = (playerID == 1) ? keyH.p1_kamehameha : keyH.p2_kamehameha;
-        inFly     = (playerID == 1) ? keyH.p1_fly        : keyH.p2_fly;
-        inAura    = (playerID == 1) ? keyH.p1_aura       : keyH.p2_aura;
-        inBlock   = (playerID == 1) ? keyH.p1_block      : keyH.p2_block;
-
-        if (!isAttacking && !isTeleporting && !isChargingAura && opponent != null)
-            this.facingRight = (this.x <= opponent.getX());
-
-        // =========================================================
-        // SISTEMA 3 — BLOCCO con tracking della durata
-        // =========================================================
-        boolean wasBlocking = isBlocking;
-        if (inBlock && !isAttacking && !isTeleporting && !isChargingAura && !isHit)
-            isBlocking = true;
-        else
-            isBlocking = false;
-
-        if (isBlocking) {
-            if (!wasBlocking) blockActiveTimer = 0; // prima frame del blocco
+        if (isBlocking()) {
+            if (!wasBlocking) blockActiveTimer = 0;
             blockActiveTimer++;
         } else {
             blockActiveTimer = 0;
         }
 
-        // Counter window scade nel tempo
-        if (counterWindow > 0) {
-            counterWindow--;
-            if (counterWindow == 0) isCountering = false;
-        }
+        // Counter window scade
+        if (counterWindow > 0) { counterWindow--; if (counterWindow == 0) isCountering = false; }
 
-        // =========================================================
-        // SISTEMA 1 — KI: rigenerazione e Ki Break
-        // =========================================================
+        // --- KI: rigenerazione e Ki Break ---
         if (kiBreakTimer > 0) {
             kiBreakTimer--;
         } else {
-            double regenMult = isAuraActive ? 2.0 : 1.0;
+            double regenMult = (state == FighterState.AURA_ACTIVE) ? 2.0 : 1.0;
             ki = Math.min(MAX_KI, ki + kiRegen * regenMult);
         }
 
-        // =========================================================
-        // SISTEMA 2 — COMBO timer: azzera la catena se scade
-        // =========================================================
-        if (comboTimer > 0) {
-            comboTimer--;
-        } else if (comboCount > 0) {
+        // Carica Ki manuale
+        if (inCharge && !isAttacking() && !isBlocking()
+                && state != FighterState.TELEPORTING) {
+            setState(FighterState.CHARGING_KI);
+            ki = Math.min(MAX_KI, ki + kiChargeRate);
+        } else if (state == FighterState.CHARGING_KI) {
+            setState(FighterState.IDLE);
+        }
+
+        // --- COMBO WINDOW timer ---
+        if (comboWindowTimer > 0) {
+            comboWindowTimer--;
+        } else if (comboCount > 0 && !isAttacking()) {
             comboCount        = 0;
             comboDamageScale  = 1.0;
+            activeRoute       = null;
+            comboStep         = 0;
         }
 
         // --- AURA ---
-        if (inAura && auraEnergy >= MAX_AURA_ENERGY && !isAuraActive && !isChargingAura
-                && !isAttacking && !isTeleporting && !isBlocking) {
-            isChargingAura = true; auraChargeTimer = 0; velocityY = 0;
+        if (inCharge && auraEnergy >= MAX_AURA_ENERGY
+                && state != FighterState.AURA_ACTIVE
+                && !isAttacking() && !isBlocking()) {
+            setState(FighterState.CHARGING_KI);
+            auraChargeTimer = 0;
+            velocityY       = 0;
         }
-        if (isChargingAura) {
+        if (state == FighterState.CHARGING_KI && auraEnergy >= MAX_AURA_ENERGY) {
             auraChargeTimer++;
             if (auraChargeTimer >= AURA_CHARGE_DURATION) {
-                isChargingAura = false; isAuraActive = true;
+                setState(FighterState.AURA_ACTIVE);
                 hp += 25; if (hp > maxHP) hp = maxHP;
             }
         }
-        if (isAuraActive) {
-            speed = (int)(8 * scale); jumpStrength = -15 * scale;
-            auraEnergy -= AURA_DRAIN_RATE;
-            if (auraEnergy <= 0) { auraEnergy = 0; isAuraActive = false; }
+        if (state == FighterState.AURA_ACTIVE) {
+            speed        = (int)(8 * scale);
+            jumpStrength = -15 * scale;
+            auraEnergy  -= AURA_DRAIN_RATE;
+            if (auraEnergy <= 0) { auraEnergy = 0; setState(FighterState.IDLE); }
         } else {
-            speed = (int)(4 * scale); jumpStrength = -12 * scale;
-            if (auraEnergy < MAX_AURA_ENERGY && !isChargingAura) auraEnergy++;
+            speed        = (int)(4 * scale);
+            jumpStrength = -12 * scale;
+            if (auraEnergy < MAX_AURA_ENERGY && state != FighterState.CHARGING_KI)
+                auraEnergy++;
         }
 
-        if (isChargingAura || isAuraActive) {
+        // Animazione aura
+        if (state == FighterState.CHARGING_KI || state == FighterState.AURA_ACTIVE) {
             auraAnimTimer++;
             if (auraAnimTimer > 4) { auraFrame++; if (auraFrame > 3) auraFrame = 0; auraAnimTimer = 0; }
             if (auraImage != null && Math.random() < 0.15) {
                 int rX = x + (int)(Math.random() * baseWidth * 1.5) - (int)(baseWidth * 0.25);
                 int rY = y - (int)(Math.random() * baseHeight);
                 activeEffects.add(new VisualEffect(auraImage, rX, rY,
-                        new int[]{129, 197}, new int[]{985, 894}, new int[]{66, 72}, new int[]{106, 79}, 3, scale * 0.6));
+                        new int[]{129, 197}, new int[]{985, 894},
+                        new int[]{66, 72}, new int[]{106, 79}, 3, scale * 0.6));
             }
         } else { auraFrame = 0; }
 
-        if (shotCooldown > 0) shotCooldown--;
+        // Special energy
+        if (isInState(FighterState.SPECIAL_ACTIVE, FighterState.ULTIMATE_ACTIVE)) {
+            specialEnergy -= specialDrainRate; if (specialEnergy < 0) specialEnergy = 0;
+        } else if (specialEnergy < MAX_SPECIAL_ENERGY) specialEnergy++;
 
-        // Special drena energia durante l'uso
-        if (isAttacking && attackType == 6) { specialEnergy -= specialDrainRate; if (specialEnergy < 0) specialEnergy = 0; }
-        else if (specialEnergy < MAX_SPECIAL_ENERGY) specialEnergy++;
-
+        // Doppio tap teleport
         if (tapTimerW > 0) tapTimerW--; if (tapTimerA > 0) tapTimerA--;
         if (tapTimerS > 0) tapTimerS--; if (tapTimerD > 0) tapTimerD--;
+        boolean newA = inLeft  && !prevLeft;
+        boolean newD = inRight && !prevRight;
+        boolean newW = inUp    && !prevUp;
+        boolean newS = inDown  && !prevDown;
 
-        boolean newW = inUp && !prevW, newA = inLeft && !prevA;
-        boolean newS = inDown && !prevS, newD = inRight && !prevD;
+        // =============================================
+        // LOGICA PRINCIPALE — solo se non bloccati
+        // =============================================
+        if (!isBlocking() && !isInHitStun()
+                && state != FighterState.CHARGING_KI
+                && state != FighterState.GUARD_CRUSHED) {
 
-        if (!isChargingAura && !isBlocking && !isHit) {
-
-            if (!isTeleporting && !isAttacking) {
-                // Teleport con doppio tap
+            // --- TELEPORT ---
+            if (!isAttacking() && state != FighterState.TELEPORTING) {
                 if (newA) { if (tapTimerA > 0) { startTeleport((int)(-DASH_DISTANCE * scale), 0, facingRight); tapTimerA = 0; } else tapTimerA = DOUBLE_TAP_WINDOW; }
                 if (newD) { if (tapTimerD > 0) { startTeleport((int)( DASH_DISTANCE * scale), 0, facingRight); tapTimerD = 0; } else tapTimerD = DOUBLE_TAP_WINDOW; }
                 if (newW) { if (tapTimerW > 0) { startTeleport(0, (int)(-DASH_DISTANCE * scale), facingRight); tapTimerW = 0; } else tapTimerW = DOUBLE_TAP_WINDOW; }
-                if (newS && isFlying) { if (tapTimerS > 0) { startTeleport(0, (int)(DASH_DISTANCE * scale), facingRight); tapTimerS = 0; } else tapTimerS = DOUBLE_TAP_WINDOW; }
-
-                // Attacchi corpo a corpo
-                if (!isFlying && !isJumping && !isCrouching) {
-                    if (inPunch) { isAttacking = true; attackTimer = 0; attackType = 1; }
-                    else if (inKick) { isAttacking = true; attackTimer = 0; attackType = 2; }
-                } else if (isFlying) {
-                    if (inKick)       { isAttacking = true; attackTimer = 0; attackType = 3; }
-                    else if (inPunch) { isAttacking = true; attackTimer = 0; attackType = 4; }
-                }
-
-                // =============================================
-                // SISTEMA 1 — KI BLAST usa la barra Ki continua
-                // =============================================
-                if (inKiBlast && ki >= kiBlastKiCost && shotCooldown == 0 && kiBreakTimer == 0) {
-                    isAttacking = true; attackTimer = 0; attackType = 5;
-                    ki -= kiBlastKiCost;
-                    if (ki <= 0) { ki = 0; kiBreakTimer = KI_BREAK_DURATION; }
-                    shotCooldown = 30;
-                    spawnKiBlastVFX();
-                }
-
-                // Special: richiede energy piena + Ki minimo (non usabile durante Ki Break)
-                if (inSpecial && specialEnergy >= MAX_SPECIAL_ENERGY && ki >= 50 && kiBreakTimer == 0) {
-                    isAttacking = true; attackTimer = 0; attackType = 6;
-                    ki -= 50;
-                }
+                if (newS && isFlying()) { if (tapTimerS > 0) { startTeleport(0, (int)(DASH_DISTANCE * scale), facingRight); tapTimerS = 0; } else tapTimerS = DOUBLE_TAP_WINDOW; }
             }
 
-            if (isAttacking) {
-                if (attackTimer == 0) hasHit = false;
-                attackTimer++;
-
-                if (attackType == 5 && attackTimer == 7) fireKiBlastProjectile();
-
-                // Rilevamento collisione e danno
-                if (!hasHit && opponent != null) {
-                    Rectangle hitbox = getAttackHitbox();
-                    if (hitbox != null && hitbox.intersects(opponent.getBounds())) {
-                        int damage = 0, kb = 0;
-
-                        if (attackType == 1 || attackType == 4) { damage = punchDamage; kb = (int)(8  * scale); }
-                        else if (attackType == 2 || attackType == 3) { damage = kickDamage;  kb = (int)(10 * scale); }
-                        else if (attackType == 6) { damage = specialDamage; kb = (int)(40 * scale); }
-
-                        if (damage > 0) {
-                            // =============================================
-                            // SISTEMA 2 — SCALING DANNO COMBO
-                            // =============================================
-                            if (comboTimer > 0) comboCount++;
-                            else                comboCount = 1;
-                            comboTimer       = COMBO_WINDOW;
-                            comboDamageScale = Math.max(0.30, 1.0 - (comboCount - 1) * 0.08);
-                            int finalDamage  = (int)(damage * comboDamageScale);
-
-                            // =============================================
-                            // SISTEMA 3 — BONUS COUNTER ATTACK
-                            // =============================================
-                            if (isCountering) {
-                                finalDamage   = (int)(finalDamage * 1.5);
-                                isCountering  = false;
-                                counterWindow = 0;
-                            }
-
-                            boolean isEnergy = (attackType == 6);
-                            opponent.takeDamage(finalDamage, kb, isEnergy);
-                            hasHit = true;
-                            if (attackType == 6) onSpecialAttackHit(opponent);
-                        }
-                    }
-                }
-
-                int currentDuration = (attackType == 6) ? SPECIAL_DURATION : ATTACK_DURATION;
-                if (attackTimer >= currentDuration) { isAttacking = false; attackType = 0; }
-            }
-
-            // Ki Blast projectiles: update e collisione
-            for (int i = 0; i < activeBlasts.size(); i++) {
-                KiBlastProjectile blast = activeBlasts.get(i);
-                blast.update(activeEffects);
-                Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(10 * scale), (int)(40 * scale), (int)(20 * scale));
-                if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
-                    opponent.takeDamage(kiBlastDamage, (int)(15 * scale), true);
-                    int impX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
-                    int impY = opponent.y + (opponent.baseHeight / 2);
-                    opponent.activeEffects.add(new VisualEffect(blast.img, impX, impY,
-                            new int[]{260, 0, 86}, new int[]{135, 448, 448}, new int[]{126, 70, 70}, new int[]{109, 64, 64},
-                            new int[]{0, 0, 0}, new int[]{-40, -40, -40}, 6, 0.5 * scale));
-                    activeBlasts.remove(i); i--; continue;
-                }
-                if (blast.isDead) { activeBlasts.remove(i); i--; }
-            }
-
-            // --- Teletrasporto ---
-            if (isTeleporting) {
+            // --- TELEPORT update ---
+            if (state == FighterState.TELEPORTING) {
                 teleportCounter++;
                 if (teleportCounter > 2) {
                     teleportCounter = 0;
@@ -582,108 +592,294 @@ public abstract class Fighter {
                         if (teleportFrame < 1) {
                             x += targetOffsetX; y += targetOffsetY;
                             if (y > groundY) y = groundY;
-                            if (isFlying && y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale);
+                            if (isFlying() && y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale);
                             teleportPhase = 2; teleportFrame = 1;
                         }
-                    } else if (teleportPhase == 2) {
+                    } else {
                         teleportFrame++;
-                        if (teleportFrame > 6) { isTeleporting = false; teleportPhase = 1; teleportFrame = 6; }
+                        if (teleportFrame > 6) { setState(FighterState.IDLE); teleportPhase = 1; teleportFrame = 6; }
                     }
                 }
-            } else {
-                // Volo e movimento
-                if (flyCooldown > 0) flyCooldown--;
-                if (inFly && flyCooldown == 0 && !isAttacking) {
-                    isFlying = !isFlying; flyCooldown = 20;
-                    if (isFlying) { velocityY = 0; isJumping = false; isCrouching = false; if (y >= groundY) y -= (int)(40 * scale); }
-                    else isJumping = true;
+            }
+
+            // --- NEO COMBO ---
+            if (!isAttacking() && state != FighterState.TELEPORTING) {
+
+                // Z-CANCEL: interrompe la combo corrente spendendo Ki
+                if (isAttacking() && zCancelAvailable
+                        && inBlock && ki >= Z_CANCEL_COST) {
+                    ki -= Z_CANCEL_COST;
+                    activeRoute      = null;
+                    comboStep        = 0;
+                    attackTimer      = 0;
+                    zCancelAvailable = false;
+                    setState(FighterState.IDLE);
                 }
 
-                if (isFlying) {
-                    if (inUp) y -= speed;
-                    if (inDown) { y += speed; if (y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale); }
-                    if (!isAttacking) {
-                        if (inLeft) {
-                            x -= speed;
-                            if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed;
-                            flyMoveTimer++;
-                            flyNum = facingRight
-                                    ? (flyMoveTimer > 8 ? 5 : 4)  // indietro: prep → pieno
-                                    : (flyMoveTimer > 8 ? 3 : 2);  // avanti: prep → pieno
-                        } else if (inRight) {
-                            x += speed;
-                            if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed;
-                            flyMoveTimer++;
-                            flyNum = facingRight
-                                    ? (flyMoveTimer > 8 ? 3 : 2)   // avanti: prep → pieno
-                                    : (flyMoveTimer > 8 ? 5 : 4);  // indietro: prep → pieno
-                        } else {
-                            flyMoveTimer = 0;
-                            flyNum = 1; // stazionario
+                // Cerca una combo che matchi l'input buffer
+                if (inLight || inHeavy) {
+                    ComboRoute matched = findMatchingRoute();
+                    if (matched != null) {
+                        activeRoute  = matched;
+                        comboStep    = matched.length() - 1; // step corrente
+                        attackTimer  = 0;
+                        hasHit       = false;
+                        setState(inputBuffer.lastInput() == ComboRoute.HEAVY
+                                ? FighterState.COMBO_HEAVY
+                                : FighterState.COMBO_LIGHT);
+                        inputBuffer.consume();
+                    }
+                }
+
+                // SPECIAL (Ki Blast)
+                if (inSpecial && ki >= kiBlastKiCost
+                        && kiBreakTimer == 0
+                        && state != FighterState.SPECIAL_STARTUP) {
+                    ki -= kiBlastKiCost;
+                    if (ki <= 0) { ki = 0; kiBreakTimer = KI_BREAK_DURATION; }
+                    setState(FighterState.SPECIAL_STARTUP);
+                    specialTimer = 0;
+                    spawnKiBlastVFX();
+                }
+
+                // ULTIMATE
+                if (inUltimate && specialEnergy >= MAX_SPECIAL_ENERGY
+                        && ki >= 50 && kiBreakTimer == 0) {
+                    ki -= 50;
+                    setState(FighterState.ULTIMATE_STARTUP);
+                    specialTimer = 0;
+                }
+            }
+
+            // --- ESECUZIONE COMBO ---
+            if (isInState(FighterState.COMBO_LIGHT, FighterState.COMBO_HEAVY)) {
+                attackTimer++;
+                AttackData atk = activeRoute.attacks[comboStep];
+
+                // Hit detection
+                if (!hasHit && opponent != null) {
+                    Rectangle hitbox = getCurrentAttackHitbox();
+                    if (hitbox != null && hitbox.intersects(opponent.getBounds())) {
+                        // Combo scaling
+                        comboCount++;
+                        comboWindowTimer  = COMBO_WINDOW;
+                        comboDamageScale  = Math.max(0.30, 1.0 - (comboCount - 1) * 0.08);
+                        int finalDamage   = (int)(atk.damage * comboDamageScale);
+
+                        // Counter bonus
+                        if (isCountering) {
+                            finalDamage   = (int)(finalDamage * 1.5);
+                            isCountering  = false;
+                            counterWindow = 0;
                         }
+
+                        opponent.takeDamage(finalDamage, atk.knockback,
+                                atk.isEnergy, atk.isUnblockable);
+                        ki = Math.min(MAX_KI, ki + kiOnHitReward);
+                        hasHit           = true;
+                        zCancelAvailable = true;
                     }
-                } else {
-                    if (!isCrouching && !isAttacking) {
-                        if (inLeft)  { x -= speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed; isMoving = true; }
-                        if (inRight) { x += speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed; isMoving = true; }
-                    }
-                    if (inUp && !isJumping && !isCrouching && !isAttacking) { isCrouching = true; crouchTimer = 0; }
-                    if (isCrouching) { crouchTimer++; if (crouchTimer >= CROUCH_DURATION) { isCrouching = false; isJumping = true; velocityY = jumpStrength; } }
-                    if (isJumping) { velocityY += gravity; y += (int)velocityY; }
                 }
 
-                if (y >= groundY) { y = groundY; velocityY = 0; isJumping = false; isFlying = false; }
-                if (y < 0)  { y = 0; velocityY = 0; }
-                if (x < 0)  x = 0;
-                if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
+                // Fine di questo step della combo
+                if (attackTimer >= atk.totalDuration()) {
+                    attackTimer = 0;
+                    hasHit      = false;
+
+                    // Avanza al prossimo step se c'è
+                    if (comboStep + 1 < activeRoute.length()) {
+                        comboStep++;
+                        // Aspetta il prossimo input nel COMBO_WINDOW
+                        setState(FighterState.IDLE);
+                    } else {
+                        // Combo finita
+                        activeRoute      = null;
+                        comboStep        = 0;
+                        zCancelAvailable = false;
+                        setState(isFlying() ? FighterState.FLYING_IDLE : FighterState.IDLE);
+                    }
+                }
             }
-        } else {
-            // Gravità durante hitstun o blocco
-            if (!isFlying && y < groundY) {
-                isJumping = true; velocityY += gravity; y += (int)velocityY;
-                if (y >= groundY) { y = groundY; velocityY = 0; isJumping = false; }
+
+            // --- SPECIAL update ---
+            if (state == FighterState.SPECIAL_STARTUP) {
+                specialTimer++;
+                if (specialTimer == 7) fireKiBlastProjectile();
+                if (specialTimer >= 15) setState(FighterState.IDLE);
             }
+
+            // --- ULTIMATE update ---
+            if (state == FighterState.ULTIMATE_STARTUP) {
+                specialTimer++;
+                if (specialTimer >= SPECIAL_CHARGE) setState(FighterState.ULTIMATE_ACTIVE);
+            }
+            if (state == FighterState.ULTIMATE_ACTIVE) {
+                specialTimer++;
+                Rectangle hitbox = getUltimateHitbox();
+                if (hitbox != null && opponent != null
+                        && hitbox.intersects(opponent.getBounds())) {
+                    int finalDamage = specialDamage;
+                    if (isCountering) { finalDamage = (int)(finalDamage * 1.5); isCountering = false; }
+                    opponent.takeDamage(finalDamage, (int)(40 * scale), true);
+                    onUltimateHit(opponent);
+                }
+                if (specialTimer >= SPECIAL_CHARGE + SPECIAL_DURATION) {
+                    setState(FighterState.IDLE);
+                    specialTimer = 0;
+                }
+            }
+
+            // --- KI BLAST projectiles ---
+            for (int i = 0; i < activeBlasts.size(); i++) {
+                KiBlastProjectile blast = activeBlasts.get(i);
+                blast.update(activeEffects);
+                Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(10 * scale),
+                        (int)(40 * scale), (int)(20 * scale));
+                if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
+                    opponent.takeDamage(kiBlastDamage, (int)(15 * scale), true);
+                    int impX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
+                    int impY = opponent.y + (opponent.baseHeight / 2);
+                    opponent.activeEffects.add(new VisualEffect(blast.img, impX, impY,
+                            new int[]{260, 0, 86}, new int[]{135, 448, 448},
+                            new int[]{126, 70, 70}, new int[]{109, 64, 64},
+                            new int[]{0, 0, 0}, new int[]{-40, -40, -40}, 6, 0.5 * scale));
+                    activeBlasts.remove(i); i--; continue;
+                }
+                if (blast.isDead) { activeBlasts.remove(i); i--; }
+            }
+
+            // --- VOLO ---
+            if (!isAttacking() && state != FighterState.TELEPORTING) {
+                if (flyCooldown > 0) flyCooldown--;
+                if (inFly && flyCooldown == 0) {
+                    if (!isFlying()) {
+                        setState(FighterState.FLYING_IDLE);
+                        flyCooldown = 20;
+                        velocityY   = 0;
+                        if (y >= groundY) y -= (int)(40 * scale);
+                    } else {
+                        setState(FighterState.JUMPING);
+                        flyCooldown = 20;
+                    }
+                }
+            }
+
+            if (isFlying()) {
+                if (inUp)   y -= speed;
+                if (inDown) { y += speed; if (y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale); }
+                if (!isAttacking()) {
+                    if (inLeft) {
+                        x -= speed;
+                        if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed;
+                        flyMoveTimer++;
+                        setState(facingRight
+                                ? (flyMoveTimer > 8 ? FighterState.FLYING_BACKWARD_FULL : FighterState.FLYING_BACKWARD)
+                                : (flyMoveTimer > 8 ? FighterState.FLYING_FORWARD_FULL  : FighterState.FLYING_FORWARD));
+                    } else if (inRight) {
+                        x += speed;
+                        if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed;
+                        flyMoveTimer++;
+                        setState(facingRight
+                                ? (flyMoveTimer > 8 ? FighterState.FLYING_FORWARD_FULL  : FighterState.FLYING_FORWARD)
+                                : (flyMoveTimer > 8 ? FighterState.FLYING_BACKWARD_FULL : FighterState.FLYING_BACKWARD));
+                    } else {
+                        flyMoveTimer = 0;
+                        setState(FighterState.FLYING_IDLE);
+                    }
+                }
+            } else if (!isAttacking() && state != FighterState.TELEPORTING) {
+                // Movimento a terra
+                if (state != FighterState.CROUCHING) {
+                    if (inLeft)  { x -= speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed; setState(FighterState.WALKING); }
+                    else if (inRight) { x += speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed; setState(FighterState.WALKING); }
+                    else if (state == FighterState.WALKING) setState(FighterState.IDLE);
+                }
+
+                // Salto
+                if (inUp && state != FighterState.JUMPING && state != FighterState.CROUCHING) {
+                    setState(FighterState.CROUCHING); crouchTimer = 0;
+                }
+                if (state == FighterState.CROUCHING) {
+                    crouchTimer++;
+                    if (crouchTimer >= CROUCH_DURATION) {
+                        setState(FighterState.JUMPING);
+                        velocityY = jumpStrength;
+                    }
+                }
+                if (state == FighterState.JUMPING) {
+                    velocityY += gravity;
+                    y += (int)velocityY;
+                }
+            }
+
+            // Limiti schermo e pavimento
+            if (y >= groundY) { y = groundY; velocityY = 0; if (isFlying() || state == FighterState.JUMPING) setState(FighterState.IDLE); }
+            if (y < 0)  { y = 0; velocityY = 0; }
+            if (x < 0)  x = 0;
+            if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
         }
 
-        prevW = inUp; prevA = inLeft; prevS = inDown; prevD = inRight;
+        prevUp    = inUp;
+        prevLeft  = inLeft;
+        prevRight = inRight;
+        prevDown  = inDown;
     }
 
-    // =========================================================
-    // RENDERING — drawFighterSprite con effetti Guard Crush
-    // =========================================================
+    // =============================================
+    // FIND MATCHING ROUTE — cerca la combo
+    // che matcha l'input buffer corrente
+    // =============================================
+    protected ComboRoute findMatchingRoute() {
+        if (comboRoutes == null) return null;
+        boolean inAir = isFlying() || state == FighterState.JUMPING;
+        boolean aura  = state == FighterState.AURA_ACTIVE;
+
+        // Priorità: route più lunghe prima (più specifiche)
+        ComboRoute best = null;
+        for (ComboRoute route : comboRoutes) {
+            if (!route.isExecutable(aura, inAir)) continue;
+            if (inputBuffer.matches(route.inputSequence)) {
+                if (best == null || route.length() > best.length())
+                    best = route;
+            }
+        }
+        return best;
+    }
+
+    // =============================================
+    // RENDERING
+    // =============================================
     protected void drawFighterSprite(Graphics2D g2d) {
-        drawW = (int)(srcW * scale);
-        drawH = (int)(srcH * scale);
-        drawY = y - (drawH - baseHeight);
+        drawW  = (int)(srcW * scale);
+        drawH  = (int)(srcH * scale);
+        drawY  = y - (drawH - baseHeight);
         shiftX = (baseWidth - drawW) / 2;
-        if (isAttacking && !facingRight) shiftX = -(drawW - baseWidth);
+        if (isAttacking() && !facingRight) shiftX = -(drawW - baseWidth);
         shiftX += customOffsetX;
 
         drawShadow(g2d);
         drawAura(g2d);
 
         float currentAlpha = 1.0f;
-        if (isTeleporting) {
+        if (state == FighterState.TELEPORTING) {
             currentAlpha = Math.max(0.0f, Math.min(1.0f, (float)teleportFrame / 6.0f));
-        } else if (isInvincible && invincibleTimer % 10 < 5) {
+        } else if (invincibleTimer > 0 && invincibleTimer % 10 < 5) {
             currentAlpha = 0.4f;
-        } else if (isGuardCrushed && guardCrushTimer % 8 < 4) {
+        } else if (state == FighterState.GUARD_CRUSHED && guardCrushTimer % 8 < 4) {
             currentAlpha = 0.65f;
         }
 
-        // Tinta rossa lampeggiante durante Guard Crush
-        if (isGuardCrushed) {
+        if (state == FighterState.GUARD_CRUSHED) {
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.30f));
             g2d.setColor(Color.RED);
             g2d.fillRect(x + shiftX, drawY, drawW, drawH);
         }
 
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, currentAlpha));
-
         int sX1 = x + shiftX, sX2 = sX1 + drawW;
         if (facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
-        g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH, srcX, srcY, srcX + srcW, srcY + srcH, null);
-
+        g2d.drawImage(spriteSheet, sX1, drawY, sX2, drawY + drawH,
+                srcX, srcY, srcX + srcW, srcY + srcH, null);
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
@@ -697,6 +893,43 @@ public abstract class Fighter {
             g2d.drawImage(pin, pinX, pinY, pinW, pinH, null);
         }
     }
+
+    protected void drawAura(Graphics2D g2d) {
+        if ((state == FighterState.CHARGING_KI || state == FighterState.AURA_ACTIVE) && auraImage != null) {
+            int[] aX = {3, 357, 4, 368}, aY = {4, 4, 454, 440};
+            int[] aW = {350, 345, 359, 356}, aH = {446, 432, 437, 417};
+            double auraDrawScale = 0.45 * scale;
+            int dAW = (int)(aW[auraFrame] * auraDrawScale), dAH = (int)(aH[auraFrame] * auraDrawScale);
+            int dAX = x + (baseWidth - dAW) / 2;
+            int dAY = y - (dAH - baseHeight) + (int)(20 * scale);
+            g2d.drawImage(auraImage, dAX, dAY, dAX + dAW, dAY + dAH,
+                    aX[auraFrame], aY[auraFrame],
+                    aX[auraFrame] + aW[auraFrame], aY[auraFrame] + aH[auraFrame], null);
+        }
+    }
+
+    protected void drawShadow(Graphics2D g2d) {
+        int dist       = Math.max(0, groundY - y);
+        float maxDist  = (float)(250 * scale);
+        float sScale   = Math.max(0.2f, 1.0f - (dist / maxDist));
+        int shadowW    = (int)(baseWidth * 1.4 * sScale);
+        int shadowH    = (int)(22 * scale * sScale);
+        int centerX    = x + (baseWidth / 2);
+        int shadowX    = centerX - (shadowW / 2);
+        int floorY     = groundY + baseHeight;
+        int shadowY    = floorY - (shadowH / 2) - (int)(4 * scale);
+        float alphaVal = 0.6f * sScale;
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alphaVal));
+        g2d.setColor(Color.BLACK);
+        g2d.fillOval(shadowX, shadowY, shadowW, shadowH);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+    }
+
+    // HUD — invariato dalla versione precedente
+    // (drawUniversalHUD, drawBar, drawCounterBadge, drawComboBadge)
+    // Copia il blocco completo dal Fighter.java precedente —
+    // non va modificato, funziona già con le nuove variabili.
+
 
     protected void drawUniversalHUD(Graphics2D g2d, String specialName) {
         ResourceManager resM = ResourceManager.getInstance();
@@ -788,7 +1021,7 @@ public abstract class Fighter {
         double kiPercent = ki / MAX_KI;
         Color kiColor = kiBreakTimer > 0
                 ? (kiBreakTimer % 10 < 5 ? new Color(255, 130, 0) : new Color(90, 40, 0))
-                : (isAuraActive ? new Color(160, 220, 255) : new Color(70, 150, 255));
+                : (state == FighterState.AURA_ACTIVE ? new Color(160, 220, 255) : new Color(70, 150, 255));
         String kiLabel = kiBreakTimer > 0 ? "KI BREAK!" : "KI";
         Color kiLabelColor = kiBreakTimer > 0 ? new Color(255, 130, 0) : new Color(70, 150, 255);
         drawBar(g2d, barsAreaStart, barsAreaEnd, barsStartY + barGap * 3,
@@ -797,11 +1030,13 @@ public abstract class Fighter {
 
         // --- BARRA GUARD ---
         double guardPercent = (double) guardHealth / MAX_GUARD_HEALTH;
-        Color guardColor = isGuardCrushed     ? new Color(200, 30, 30)
+        Color guardColor = (state == FighterState.GUARD_CRUSHED) ? new Color(200, 30, 30)
                 : guardPercent < 0.30         ? new Color(220, 100, 30)
                 :                               new Color(175, 175, 185);
-        String guardLabel = isGuardCrushed ? "BROKEN" : "GUARD";
-        Color guardLabelColor = isGuardCrushed ? new Color(220, 50, 50) : new Color(150, 150, 165);
+        String guardLabel = (state == FighterState.GUARD_CRUSHED) ? "BROKEN" : "GUARD";
+        Color guardLabelColor = (state == FighterState.GUARD_CRUSHED)
+                ? new Color(220, 50, 50)
+                : new Color(150, 150, 165);
         drawBar(g2d, barsAreaStart, barsAreaEnd, barsStartY + barGap * 4,
                 guardBarW, barH, radius, guardPercent,
                 new Color(35, 10, 10), guardColor, guardLabel, guardLabelColor, resM, labelMargin);
@@ -928,36 +1163,5 @@ public abstract class Fighter {
         g2d.drawString(scaleStr, badgeCX - sw / 2, badgeY + 17);
     }
 
-    // =========================================================
-    // RENDERING — Aura e Ombra (invariate)
-    // =========================================================
-    protected void drawAura(Graphics2D g2d) {
-        if ((isChargingAura || isAuraActive) && auraImage != null) {
-            int[] aX = {3, 357, 4, 368}, aY = {4, 4, 454, 440};
-            int[] aW = {350, 345, 359, 356}, aH = {446, 432, 437, 417};
-            double auraDrawScale = 0.45 * scale;
-            int dAW = (int)(aW[auraFrame] * auraDrawScale), dAH = (int)(aH[auraFrame] * auraDrawScale);
-            int dAX = x + (baseWidth - dAW) / 2;
-            int dAY = y - (dAH - baseHeight) + (int)(20 * scale);
-            g2d.drawImage(auraImage, dAX, dAY, dAX + dAW, dAY + dAH,
-                    aX[auraFrame], aY[auraFrame], aX[auraFrame] + aW[auraFrame], aY[auraFrame] + aH[auraFrame], null);
-        }
-    }
 
-    protected void drawShadow(Graphics2D g2d) {
-        int dist = Math.max(0, groundY - y);
-        float maxDist  = (float)(250 * scale);
-        float sScale   = Math.max(0.2f, 1.0f - (dist / maxDist));
-        int shadowW    = (int)(baseWidth * 1.4 * sScale);
-        int shadowH    = (int)(22 * scale * sScale);
-        int centerX    = x + (baseWidth / 2);
-        int shadowX    = centerX - (shadowW / 2);
-        int floorY     = groundY + baseHeight;
-        int shadowY    = floorY - (shadowH / 2) - (int)(4 * scale);
-        float alphaVal = 0.6f * sScale;
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alphaVal));
-        g2d.setColor(Color.BLACK);
-        g2d.fillOval(shadowX, shadowY, shadowW, shadowH);
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-    }
 }

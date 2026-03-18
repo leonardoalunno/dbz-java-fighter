@@ -129,16 +129,18 @@ public class GamePanel extends JPanel implements Runnable {
                     // --- TRUCCO: LEGGIAMO L'IMPATTO PER GENERARE LO SHAKE! ---
                     // Se un giocatore viene colpito (hitTimer = 1 è il primo frame dell'impatto)
                     // La magnitudo dipende dalla violenza del Knockback!
-                    if (player1.isHit && player1.hitTimer == 1) {
+                    if (player1.isInState(FighterState.HIT_STUN) && player1.hitTimer == 1) {
                         startShake(12, Math.max(2, player1.knockbackSpeed / 2));
                     }
-                    if (player2.isHit && player2.hitTimer == 1) {
+                    if (player2.isInState(FighterState.HIT_STUN) && player2.hitTimer == 1) {
                         startShake(12, Math.max(2, player2.knockbackSpeed / 2));
                     }
                 }
 
                 if (battlePhase == 2) {
-                    if (player1.hp <= 0 || player2.hp <= 0) { battlePhase = 3; stateTimer = 0; }
+                    if (player1.state == FighterState.KO || player2.state == FighterState.KO) {
+                        battlePhase = 3; stateTimer = 0;
+                    }
                 }
                 else if (battlePhase == 3) {
                     stateTimer++;
