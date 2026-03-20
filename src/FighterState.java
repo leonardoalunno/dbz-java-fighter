@@ -42,6 +42,7 @@ public enum FighterState {
     HIT_STUN,       // Stordimento dopo colpo ricevuto
     GUARD_CRUSHED,  // Guardia rotta (stordimento lungo)
     TUMBLING,       // HP sotto 20% — barcollamento
+    LAUNCHED,       // Lanciato in aria da un launcher/spike — no input, gravità attiva
 
     // =============================================
     // STATI FINALI — Fine match

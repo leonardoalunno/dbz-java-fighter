@@ -59,93 +59,210 @@ public class Goku extends Fighter {
     public ComboRoute[] defineComboRoutes() {
         return new ComboRoute[] {
 
-                // L — jab singolo
+                // ============================
+                // A TERRA (requiresGround=true)
+                // ============================
+
+                // L — light singolo (4 frame, danno al 2°)
                 new ComboRoute("goku_L",
                         new int[]{ ComboRoute.LIGHT },
                         new AttackData[]{
-                                new AttackData("goku_jab", 5, 3, 7, 5, 8)
+                                new AttackData("goku_light", 4, 4, 8, 5, 8)
                         },
-                        "light_1"
+                        "light_1",
+                        false, false, true  // requiresGround=true
                 ),
 
-                // L → L — doppio jab
+                // L → L — doppio light (4 frame, danno al 2°)
                 new ComboRoute("goku_LL",
                         new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT },
                         new AttackData[]{
-                                new AttackData("goku_jab",  5, 3, 7, 5, 8),
-                                new AttackData("goku_jab2", 4, 3, 6, 5, 8)
+                                new AttackData("goku_light",  4, 4, 8, 5, 8),
+                                new AttackData("goku_light2", 4, 4, 8, 5, 8)
                         },
-                        "light_2"
+                        "light_2",
+                        false, false, true
                 ),
 
-                // L → L → L — triplo jab
+                // L → L → L — triplo light (4 frame, danno al 2°)
                 new ComboRoute("goku_LLL",
                         new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.LIGHT },
                         new AttackData[]{
-                                new AttackData("goku_jab",  5, 3, 7, 5,  8),
-                                new AttackData("goku_jab2", 4, 3, 6, 5,  8),
-                                new AttackData("goku_kick", 6, 4, 8, 8, 10)
+                                new AttackData("goku_light",  4, 4, 8, 5,  8),
+                                new AttackData("goku_light2", 4, 4, 8, 5,  8),
+                                new AttackData("goku_light3", 4, 4, 8, 8, 10)
                         },
-                        "light_3"
+                        "light_3",
+                        false, false, true
                 ),
 
-                // L → L → H — launcher
+                // L → L → H — launcher (6 frame, danno al 2°, lancia in alto)
                 new ComboRoute("goku_LLH",
                         new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.HEAVY },
                         new AttackData[]{
-                                new AttackData("goku_jab",      5, 3,  7,  5,  8),
-                                new AttackData("goku_jab2",     4, 3,  6,  5,  8),
-                                new AttackData("goku_launcher", 8, 4, 12, 15, 20,
-                                        false, false, true, false, 0.0, 15.0)
+                                new AttackData("goku_light",    4, 4,  8,  5,  8),
+                                new AttackData("goku_light2",   4, 4,  8,  5,  8),
+                                new AttackData("goku_launcher", 4, 4, 16, 15, 20,
+                                        false, true, true, false,
+                                        0.0, 15.0)
                         },
-                        "light_launcher"
+                        "light_launcher",
+                        false, false, true
                 ),
 
-                // H — smash singolo
+                // H — heavy standalone guard breaker (6 frame, danno al 4°)
+                // In block: spezza la guardia senza danno HP
+                // Fuori block: danno pieno
                 new ComboRoute("goku_H",
                         new int[]{ ComboRoute.HEAVY },
                         new AttackData[]{
-                                new AttackData("goku_smash", 7, 4, 10, 12, 12)
+                                new AttackData("goku_guard_break", 12, 4, 8, 12, 12,
+                                        false, false, false, false, true,
+                                        0.0, 15.0)
                         },
-                        "heavy_1"
+                        "heavy_standalone",
+                        false, false, true
                 ),
 
-                // L → L → L — versione aerea
+                // ============================
+                // IN ARIA (requiresAir=true)
+                // ============================
+
+                // L — air light singolo (4 frame, danno al 2°)
+                new ComboRoute("goku_L_air",
+                        new int[]{ ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_air_light", 4, 4, 8, 5, 8)
+                        },
+                        "air_light_1",
+                        false, true, false
+                ),
+
+                // L → L — doppio air light (4 frame, danno al 2°)
+                new ComboRoute("goku_LL_air",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT },
+                        new AttackData[]{
+                                new AttackData("goku_air_light",  4, 4, 8, 5, 8),
+                                new AttackData("goku_air_light2", 4, 4, 8, 5, 8)
+                        },
+                        "air_light_2",
+                        false, true, false
+                ),
+
+                // L → L → L — triplo air light (4 frame, danno al 2°)
                 new ComboRoute("goku_LLL_air",
                         new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.LIGHT },
                         new AttackData[]{
-                                new AttackData("goku_air_jab",  4, 3, 6, 5,  8),
-                                new AttackData("goku_air_jab2", 4, 3, 6, 5,  8),
-                                new AttackData("goku_air_kick", 5, 4, 8, 8, 10)
+                                new AttackData("goku_air_light",  4, 4, 8, 5,  8),
+                                new AttackData("goku_air_light2", 4, 4, 8, 5,  8),
+                                new AttackData("goku_air_light3", 4, 4, 8, 8, 10)
                         },
                         "air_light_3",
-                        false, true, false  // requiresAura=false, requiresAir=true
+                        false, true, false
                 ),
 
-                // L → L → H — launcher aereo
+                // L → L → H — air launcher (6 frame, danno al 2°, lancia in alto)
+                // Selezionato quando l'avversario è SOTTO metà schermo
                 new ComboRoute("goku_LLH_air",
                         new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.HEAVY },
                         new AttackData[]{
-                                new AttackData("goku_air_jab",     4, 3,  6,  5,  8),
-                                new AttackData("goku_air_jab2",    4, 3,  6,  5,  8),
-                                new AttackData("goku_air_smash",   7, 4, 10, 12, 18,
-                                        false, false, false, true, 0.0, 15.0)
+                                new AttackData("goku_air_light",    4, 4,  8,  5,  8),
+                                new AttackData("goku_air_light2",   4, 4,  8,  5,  8),
+                                new AttackData("goku_air_launcher", 4, 4, 16, 15, 20,
+                                        false, true, true, false,
+                                        0.0, 15.0)
                         },
                         "air_heavy_launcher",
                         false, true, false
                 ),
+
+                // L → L → H — air spike (6 frame, danno al 4°, schiaccia in basso)
+                // Selezionato quando l'avversario è SOPRA metà schermo
+                new ComboRoute("goku_LLH_air_spike",
+                        new int[]{ ComboRoute.LIGHT, ComboRoute.LIGHT, ComboRoute.HEAVY },
+                        new AttackData[]{
+                                new AttackData("goku_air_light",  4, 4,  8,  5,  8),
+                                new AttackData("goku_air_light2", 4, 4,  8,  5,  8),
+                                new AttackData("goku_air_spike", 12, 4,  8, 15, 20,
+                                        false, true, false, true,
+                                        0.0, 15.0)
+                        },
+                        "air_heavy_spike",
+                        false, true, false
+                ),
+
+                // H — air heavy standalone guard breaker (6 frame, danno al 3°)
+                new ComboRoute("goku_H_air",
+                        new int[]{ ComboRoute.HEAVY },
+                        new AttackData[]{
+                                new AttackData("goku_air_guard_break", 8, 4, 12, 12, 12,
+                                        false, false, false, false, true,
+                                        0.0, 15.0)
+                        },
+                        "air_heavy_standalone",
+                        false, true, false
+                ),
+
+                // ============================
+                // SPECIALE (requiresAura=true)
+                // ============================
 
                 // Surprise Attack — L unblockable (solo con Aura)
                 new ComboRoute("goku_surprise",
                         new int[]{ ComboRoute.LIGHT },
                         new AttackData[]{
                                 new AttackData("goku_surprise", 3, 5, 10, 8, 12,
-                                        false, true, false, false, 0.0, 20.0)
+                                        false, true, false, false,
+                                        0.0, 20.0)
                         },
                         "surprise",
-                        true, false, false  // requiresAura=true
+                        true, false, false
                 )
         };
+    }
+
+    // =============================================
+    // FIND MATCHING CHAIN ROUTE — override per spike/launcher
+    // Se in aria e combo L→L→H:
+    //   avversario sotto metà schermo → launcher (manda su)
+    //   avversario sopra metà schermo → spike (manda giù)
+    // =============================================
+    @Override
+    protected ComboRoute findMatchingChainRoute(Fighter opponent) {
+        if (comboRoutes == null || comboHistoryLength == 0) return null;
+        boolean inAir = isAttacking() ? wasFlying
+                : (isFlying() || state == FighterState.JUMPING);
+        boolean aura  = auraBoostActive;
+        int midScreen = GamePanel.SCREEN_HEIGHT / 2;
+
+        ComboRoute best = null;
+        for (ComboRoute route : comboRoutes) {
+            if (!route.isExecutable(aura, inAir)) continue;
+
+            // Spike/launcher: selezione in base alla Y dell'avversario
+            if (opponent != null && inAir) {
+                if (route.id.equals("goku_LLH_air") && opponent.y < midScreen)
+                    continue; // avversario in alto → skip launcher, usa spike
+                if (route.id.equals("goku_LLH_air_spike") && opponent.y >= midScreen)
+                    continue; // avversario in basso → skip spike, usa launcher
+            }
+
+            // Match esatto con la chain accumulata
+            if (route.length() != comboHistoryLength) continue;
+
+            boolean matches = true;
+            for (int i = 0; i < comboHistoryLength; i++) {
+                if (route.inputSequence[i] != comboInputHistory[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                if (best == null || route.length() > best.length())
+                    best = route;
+            }
+        }
+        return best;
     }
 
     // =============================================
@@ -169,18 +286,20 @@ public class Goku extends Fighter {
     // =============================================
     @Override
     protected void spawnKiBlastVFX() {
-        int handX = facingRight ? x + (int)(40 * scale) : x - (int)(10 * scale);
-        int handY = y + (int)(25 * scale);
-        activeEffects.add(new VisualEffect(kiBlastImage, handX, handY,
-                new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60},
-                7, 0.6 * scale));
+        // Scintilla frame 1 — dura esattamente 1 sprite frame (4 tick)
+        int sparkX = facingRight ? x + baseWidth - (int)(12 * scale) : x - (int)(18 * scale);
+        int sparkY = y + (int)(20 * scale);
+        activeEffects.add(new VisualEffect(kiBlastImage, sparkX, sparkY,
+                new int[]{391}, new int[]{133}, new int[]{61}, new int[]{62},
+                3, 0.8 * scale)); // speed=3 → vive 4 tick = 1 frame
     }
 
     @Override
     protected void fireKiBlastProjectile() {
-        activeBlasts.add(new KiBlastProjectile(
-                facingRight ? x + (int)(50 * scale) : x - (int)(10 * scale),
-                y + (int)(25 * scale), facingRight, kiBlastImage, scale));
+        // Punto di partenza allineato al centro della sferetta
+        int startX = facingRight ? x + baseWidth + (int)(30 * scale) : x - (int)(60 * scale);
+        int startY = y + (int)(33 * scale); // stessa Y del centro sferetta
+        activeBlasts.add(new KiBlastProjectile(startX, startY, facingRight, kiBlastImage, scale));
     }
 
     @Override
@@ -204,6 +323,23 @@ public class Goku extends Fighter {
     public void update(KeyHandler keyH, Fighter opponent) {
         super.update(keyH, opponent);
 
+        // Scintilla frame 2 (tick 4-7) — più in basso e più a dx
+        if (state == FighterState.SPECIAL_STARTUP && specialTimer == 4) {
+            int spark2X = facingRight ? x + baseWidth + (int)(8 * scale) : x - (int)(38 * scale);
+            int spark2Y = y + (int)(28 * scale);
+            activeEffects.add(new VisualEffect(kiBlastImage, spark2X, spark2Y,
+                    new int[]{391}, new int[]{133}, new int[]{61}, new int[]{62},
+                    3, 0.8 * scale));
+        }
+        // Sferetta frame 3 (tick 8-11) — centro allineato con ki blast
+        if (state == FighterState.SPECIAL_STARTUP && specialTimer == 8) {
+            int ballX = facingRight ? x + baseWidth + (int)(30 * scale) : x - (int)(60 * scale);
+            int ballY = y + (int)(33 * scale);
+            activeEffects.add(new VisualEffect(kiBlastImage, ballX, ballY,
+                    new int[]{390}, new int[]{198}, new int[]{62}, new int[]{60},
+                    3, 0.6 * scale));
+        }
+
         // Beam end per Kamehameha
         if (state == FighterState.ULTIMATE_ACTIVE) {
             beamEndX = facingRight ? GamePanel.SCREEN_WIDTH : 0;
@@ -215,7 +351,7 @@ public class Goku extends Fighter {
         // Animazione walking
         if (state == FighterState.WALKING) {
             spriteCounter++;
-            if (spriteCounter > (state == FighterState.AURA_ACTIVE ? 3 : 5)) {
+            if (spriteCounter > (auraBoostActive ? 3 : 5)) {
                 spriteNum++;
                 if (spriteNum > 6) spriteNum = 1;
                 spriteCounter = 0;
@@ -238,62 +374,112 @@ public class Goku extends Fighter {
     @Override
     public void draw(Graphics2D g2d) {
 
-        // Default: stance base
-        srcX = 455; srcY = 553; srcW = 72; srcH = 163;
+        // Default: IDLE stance
+        srcX = 438; srcY = 552; srcW = 107; srcH = 165;
 
         switch (state) {
 
             case KO -> {
-                srcW = 90; srcH = 91; srcY = 1450;
-                int[] koX = {0, 187, 300, 400, 505, 600, 710};
-                srcX = koX[Math.min(endFrame - 1, 6)];
-            }
-
-            case WINNER -> {
-                if (isFlying()) {
-                    srcW = 40; srcH = 100; srcY = 1642;
-                    int[] wfX = {0, 46};
-                    srcX = wfX[Math.min(endFrame - 1, 1)];
+                if (koFromAir) {
+                    if (koPhase == 0) {
+                        // Caduta dall'aria (2 frame)
+                        srcW = 134; srcH = 126; srcY = 7791;
+                        int[] kfX = {274, 410};
+                        srcX = kfX[Math.min(koFrame, 1)];
+                    } else {
+                        // A terra (3 frame, stop all'ultimo)
+                        srcW = 155; srcH = 121; srcY = 7921;
+                        int[] kgX = {2, 159, 316};
+                        srcX = kgX[Math.min(koFrame, 2)];
+                    }
                 } else {
-                    srcW = 33; srcH = 90; srcY = 1649;
-                    int[] wgX = {89, 128};
-                    srcX = wgX[Math.min(endFrame - 1, 1)];
+                    if (koPhase == 0) {
+                        // Colpo a terra (2 frame)
+                        srcW = 117; srcH = 130; srcY = 7657;
+                        int[] k0X = {2, 121};
+                        srcX = k0X[Math.min(koFrame, 1)];
+                    } else if (koPhase == 1) {
+                        // Transizione (1 frame)
+                        srcW = 134; srcH = 126; srcY = 7791;
+                        srcX = 2;
+                    } else {
+                        // A terra (3 frame, stop all'ultimo)
+                        srcW = 155; srcH = 121; srcY = 7921;
+                        int[] k2X = {2, 159, 316};
+                        srcX = k2X[Math.min(koFrame, 2)];
+                    }
                 }
             }
 
+            case WINNER -> {
+                srcW = 66; srcH = 163; srcY = 8046;
+                int[] wX = {2, 70, 138, 206, 274, 342, 410};
+                srcX = wX[Math.min(endFrame - 1, 6)];
+            }
+
             case HIT_STUN, TUMBLING -> {
-                srcY = 1450; srcW = 90; srcH = 91;
-                srcX = (hitTimer <= hitstunDuration / 2) ? 0 : 300;
+                srcW = 101; srcH = 137; srcY = 6780;
+                srcX = 105;
+            }
+
+            case LAUNCHED -> {
+                if (launchPhase == 0) {
+                    // Airborne
+                    if (launchedUp) {
+                        // Launcher verso l'alto: 2 frame salita + 2 frame discesa
+                        if (velocityY < 0) {
+                            // Salendo
+                            srcW = 117; srcH = 130; srcY = 7657;
+                            int[] upX = {240, 359};
+                            srcX = upX[Math.min(launchFrame, 1)];
+                        } else {
+                            // Scendendo
+                            srcW = 134; srcH = 126; srcY = 7791;
+                            int[] downX = {274, 410};
+                            srcX = downX[Math.min(launchFrame - 2, 1)];
+                        }
+                    } else {
+                        // Spike verso il basso (2 frame)
+                        srcW = 134; srcH = 126; srcY = 7791;
+                        int[] spikeX = {274, 410};
+                        srcX = spikeX[Math.min(launchFrame, 1)];
+                    }
+                } else {
+                    // Ground recovery (7 frame)
+                    srcW = 155; srcH = 121; srcY = 7921;
+                    int[] recX = {2, 159, 316, 473, 630, 787, 944};
+                    srcX = recX[Math.min(launchFrame, 6)];
+                }
             }
 
             case CHARGING_KI -> {
-                srcW = 42; srcH = 90; srcX = 0; srcY = 821;
+                srcW = 94; srcH = 162; srcY = 386;
+                // Alterna tra 2 frame per effetto vibrazione
+                srcX = (spriteCounter % 8 < 4) ? 482 : 386;
                 shiftX += (int)(Math.random() * 3) - 1;
             }
 
             case AURA_ACTIVE -> {
-                // Usa la stance ma con aura visiva attiva
-                srcX = 455; srcY = 553; srcW = 72; srcH = 163;
+                // Stessa stance di IDLE con aura visiva
+                srcX = 438; srcY = 552; srcW = 107; srcH = 165;
             }
 
             case BLOCKING -> {
                 int blockFrame = Math.min(blockActiveTimer / 5, 2);
-                srcY = 1015; srcH = 132; srcW = 95;
-                int[] bX = {3, 102, 201};
+                srcY = 1014; srcH = 133; srcW = 97;
+                int[] bX = {2, 101, 200};
                 srcX = bX[blockFrame];
             }
 
             case BLOCKING_AIR -> {
                 int blockFrame = Math.min(blockActiveTimer / 5, 2);
-                srcY = 1268; srcH = 140; srcW = 70;
-                int[] bX = {7, 81, 163};
+                srcY = 1267; srcH = 141; srcW = 76;
+                int[] bX = {2, 80, 158};
                 srcX = bX[blockFrame];
             }
 
             case TELEPORTING -> {
-                srcW = 30; srcH = 91; srcY = 1748;
-                int[] tX = {3, 38, 72, 111, 147, 185};
-                srcX = tX[Math.min(teleportFrame - 1, 5)];
+                srcW = 95; srcH = 151; srcY = 5916; srcX = 2;
             }
 
             case COMBO_LIGHT, COMBO_HEAVY -> {
@@ -303,53 +489,65 @@ public class Goku extends Fighter {
             }
 
             case SPECIAL_STARTUP, SPECIAL_ACTIVE -> {
-                srcY = 972; srcW = 65; srcH = 84;
-                srcX = (specialTimer <= 7) ? 202 : 300;
+                srcW = 117; srcH = 161; srcY = 3873;
+                int spFrame = Math.min(specialTimer / FRAME_SPEED, 5);
+                int[] spX = {2, 121, 240, 359, 478, 597};
+                srcX = spX[spFrame];
             }
 
             case ULTIMATE_STARTUP -> {
-                srcY = 1065; srcW = 54; srcH = 77; srcX = 0;
+                srcW = 135; srcH = 139; srcY = 6071;
+                int ultFrame = Math.min(specialTimer / FRAME_SPEED, 3);
+                int[] ultX = {550, 413, 276, 139};
+                srcX = ultX[ultFrame];
             }
 
             case ULTIMATE_ACTIVE -> {
-                srcY = 1065; srcW = 54; srcH = 77; srcX = 59;
+                srcW = 135; srcH = 139; srcY = 6071;
+                srcX = 2; // beam frame
             }
 
             case CROUCHING -> {
-                srcY = 1411; srcH = 162; srcW = 99; srcX = 8;
+                srcY = 1412; srcH = 165; srcW = 106; srcX = 2;
             }
 
             case JUMPING -> {
-                srcY = 1411; srcH = 162; srcW = 99;
-                int[] jumpX = {122, 224, 328, 435, 550, 670, 780};
+                srcY = 1412; srcH = 165; srcW = 106;
+                int[] jumpX = {110, 218, 326, 434, 542, 650, 758};
                 srcX = jumpX[Math.min(spriteNum - 1, 6)];
             }
 
             case FLYING_IDLE -> {
-                srcY = 8691; srcH = 156; srcW = 104; srcX = 0;
+                srcY = 1412; srcH = 165; srcW = 106; srcX = 218;
             }
             case FLYING_FORWARD -> {
-                srcY = 8691; srcH = 156; srcW = 104; srcX = 150;
+                srcY = 8547; srcH = 146; srcW = 109; srcX = 2;
             }
             case FLYING_FORWARD_FULL -> {
-                srcY = 8691; srcH = 156; srcW = 104; srcX = 300;
+                srcY = 8547; srcH = 146; srcW = 109; srcX = 113;
             }
             case FLYING_BACKWARD -> {
-                srcY = 8691; srcH = 156; srcW = 104; srcX = 450;
+                srcY = 8697; srcH = 148; srcW = 96; srcX = 2;
             }
             case FLYING_BACKWARD_FULL -> {
-                srcY = 8691; srcH = 156; srcW = 104; srcX = 600;
+                srcY = 8697; srcH = 148; srcW = 96; srcX = 100;
             }
 
             case WALKING -> {
-                srcY = 885; srcH = 125; srcW = 106;
-                int[] walkX = {3, 112, 221, 329, 437, 546};
+                srcY = 884; srcH = 126; srcW = 108;
+                int[] walkX = {2, 112, 222, 332, 442, 552};
                 srcX = walkX[Math.min(spriteNum - 1, 5)];
             }
 
             default -> {
                 // IDLE — stance base già impostata sopra
             }
+        }
+
+        // Flash visivo quando colpito da un light (sovrascrive lo sprite temporaneamente)
+        if (lightHitFlash > 0 && !isInState(FighterState.HIT_STUN, FighterState.TUMBLING,
+                FighterState.LAUNCHED, FighterState.KO)) {
+            srcW = 101; srcH = 137; srcY = 6780; srcX = 105;
         }
 
         drawFighterSprite(g2d);
@@ -373,34 +571,72 @@ public class Goku extends Fighter {
     // =============================================
     private void drawComboSprite(Graphics2D g2d) {
         String key = activeRoute.animationKey;
-        AttackData atk = activeRoute.attacks[comboStep];
-        boolean isStartup = (attackTimer <= atk.startup);
+        int frameIndex = attackTimer / FRAME_SPEED;
 
         switch (key) {
-            case "light_1", "light_2", "light_3", "light_launcher" -> {
-                // Attacchi leggeri a terra
-                if (comboStep == 2 && key.equals("light_launcher")) {
-                    // Launcher = calcio alto
-                    srcY = 439; srcW = 80; srcH = 89;
-                    srcX = isStartup ? 242 : 325;
-                } else {
-                    // Jab/pugno
-                    srcY = 442; srcW = 87; srcH = 85;
-                    srcX = isStartup ? 0 : 130;
-                }
+
+            // === TERRA: Light (4 frame) ===
+            case "light_1", "light_2", "light_3" -> {
+                frameIndex = Math.min(frameIndex, 3);
+                srcY = 2251; srcW = 145; srcH = 127;
+                int[] xFrames = {2, 149, 296, 443};
+                srcX = xFrames[frameIndex];
             }
-            case "heavy_1" -> {
-                srcY = 439; srcW = 80; srcH = 89;
-                srcX = isStartup ? 242 : 325;
+
+            // === TERRA: Launcher combo L→L→H (6 frame) ===
+            case "light_launcher" -> {
+                frameIndex = Math.min(frameIndex, 5);
+                srcY = 2685; srcW = 115; srcH = 179;
+                int[] xFrames = {2, 119, 236, 353, 470, 587};
+                srcX = xFrames[frameIndex];
             }
-            case "air_light_3", "air_heavy_launcher" -> {
-                // Attacchi aerei
-                srcY = 536; srcW = 65; srcH = 88;
-                srcX = isStartup ? 0 : 100;
+
+            // === TERRA: Heavy standalone guard breaker (6 frame) ===
+            case "heavy_standalone" -> {
+                frameIndex = Math.min(frameIndex, 5);
+                srcY = 3131; srcW = 152; srcH = 150;
+                int[] xFrames = {2, 156, 310, 464, 618, 772};
+                srcX = xFrames[frameIndex];
             }
+
+            // === ARIA: Light (4 frame) ===
+            case "air_light_1", "air_light_2", "air_light_3" -> {
+                frameIndex = Math.min(frameIndex, 3);
+                srcY = 3429; srcW = 127; srcH = 146;
+                int[] xFrames = {2, 131, 260, 389};
+                srcX = xFrames[frameIndex];
+            }
+
+            // === ARIA: Heavy standalone guard breaker (6 frame) ===
+            case "air_heavy_standalone" -> {
+                frameIndex = Math.min(frameIndex, 5);
+                srcY = 4175; srcW = 145; srcH = 160;
+                int[] xFrames = {149, 296, 443, 590, 737, 884};
+                srcX = xFrames[frameIndex];
+            }
+
+            // === ARIA: Launcher — stesso sprite del launcher a terra (6 frame) ===
+            case "air_heavy_launcher" -> {
+                frameIndex = Math.min(frameIndex, 5);
+                srcY = 2685; srcW = 115; srcH = 179;
+                int[] xFrames = {2, 119, 236, 353, 470, 587};
+                srcX = xFrames[frameIndex];
+            }
+
+            // === ARIA: Spike — calcio dall'alto verso il basso (6 frame) ===
+            case "air_heavy_spike" -> {
+                frameIndex = Math.min(frameIndex, 5);
+                srcY = 3579; srcW = 134; srcH = 151;
+                int[] xFrames = {2, 138, 274, 410, 546, 682};
+                srcX = xFrames[frameIndex];
+            }
+
+            // === SURPRISE ATTACK (usa sprite light a terra) ===
             case "surprise" -> {
-                srcY = 442; srcW = 87; srcH = 85;
-                srcX = isStartup ? 0 : 130;
+                frameIndex = Math.min(frameIndex, 3);
+                srcY = 2251; srcW = 145; srcH = 127;
+                int[] xFrames = {2, 149, 296, 443};
+                srcX = xFrames[frameIndex];
             }
         }
     }
@@ -409,20 +645,36 @@ public class Goku extends Fighter {
     // HELPER — disegno beam Kamehameha
     // =============================================
     private void drawKamehameha(Graphics2D g2d) {
-        int bodySrcX = 126, bodySrcY = 1069, bodyW = 146, bodyH = 64;
-        int headSrcX = 339, headSrcY = 1069, headW = 86,  headH = 64;
+        // Coordinate beam sprite
+        int headSrcX = 1542, headSrcY = 6083, headW = 172, headH = 128;
+        int bodySrcX = 1724, bodySrcY = 6123, bodyW = 120, bodyH = 48;
+
         int drawBodyH = (int)(bodyH * scale);
         int drawHeadW = (int)(headW * scale);
         int drawHeadH = (int)(headH * scale);
         int beamY  = drawY + (int)(6 * scale);
+        int bodyOffsetY = (drawHeadH - drawBodyH) / 2;
         int targetX = (beamEndX != -1) ? beamEndX : (facingRight ? GamePanel.SCREEN_WIDTH : 0);
+
+        // Lo sprite della testa nativo punta a SINISTRA.
+        // Origine: verso in cui spara → flip se facingRight
+        // Impatto: verso opposto → flip se !facingRight
 
         if (facingRight) {
             int startX = x + shiftX + drawW;
-            if (targetX - drawHeadW > startX) {
-                g2d.drawImage(spriteSheet, startX, beamY, targetX - drawHeadW, beamY + drawBodyH,
+            if (targetX - drawHeadW > startX + drawHeadW) {
+                // Testa origine (normale: bocca verso destra)
+                g2d.drawImage(spriteSheet,
+                        startX, beamY, startX + drawHeadW, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+                // Body (stretches)
+                g2d.drawImage(spriteSheet,
+                        startX + drawHeadW, beamY + bodyOffsetY,
+                        targetX - drawHeadW, beamY + bodyOffsetY + drawBodyH,
                         bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
-                g2d.drawImage(spriteSheet, targetX - drawHeadW, beamY, targetX, beamY + drawHeadH,
+                // Testa impatto (flippata: bocca verso sinistra)
+                g2d.drawImage(spriteSheet,
+                        targetX, beamY, targetX - drawHeadW, beamY + drawHeadH,
                         headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
             } else {
                 g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH,
@@ -430,10 +682,19 @@ public class Goku extends Fighter {
             }
         } else {
             int startX = x + shiftX;
-            if (targetX + drawHeadW < startX) {
-                g2d.drawImage(spriteSheet, startX, beamY, targetX + drawHeadW, beamY + drawBodyH,
+            if (targetX + drawHeadW < startX - drawHeadW) {
+                // Testa origine (flippata: bocca verso sinistra)
+                g2d.drawImage(spriteSheet,
+                        startX, beamY, startX - drawHeadW, beamY + drawHeadH,
+                        headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
+                // Body (stretches)
+                g2d.drawImage(spriteSheet,
+                        startX - drawHeadW, beamY + bodyOffsetY,
+                        targetX + drawHeadW, beamY + bodyOffsetY + drawBodyH,
                         bodySrcX, bodySrcY, bodySrcX + bodyW, bodySrcY + bodyH, null);
-                g2d.drawImage(spriteSheet, targetX + drawHeadW, beamY, targetX, beamY + drawHeadH,
+                // Testa impatto (normale: bocca verso destra)
+                g2d.drawImage(spriteSheet,
+                        targetX, beamY, targetX + drawHeadW, beamY + drawHeadH,
                         headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
             } else {
                 g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH,

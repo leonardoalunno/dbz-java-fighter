@@ -32,14 +32,18 @@ public class KiBlastProjectile {
             timer = 0;
         }
 
-        if (timer % 2 == 0) {
-            int trailX = pFacingRight ? px - 5 : px + 5;
-            // Rapportiamo la scia
+        // Scia: una scintilla ogni 8 tick, posizionata dietro il proiettile
+        if (timer == 0) {
+            // Calcola la larghezza approssimativa del proiettile per posizionare la scia dietro
+            int projW = (int)(250 * 0.5 * pScaleMultiplier);
+            int trailX = pFacingRight
+                    ? px - (int)(15 * pScaleMultiplier)       // dietro = a sinistra
+                    : px + projW + (int)(15 * pScaleMultiplier); // dietro = a destra del proiettile
             activeEffects.add(new VisualEffect(img,
-                    trailX, py, new int[]{391}, new int[]{133}, new int[]{61}, new int[]{62}, 4, 0.25 * pScaleMultiplier));
+                    trailX, py, new int[]{391}, new int[]{133}, new int[]{61}, new int[]{62},
+                    3, 0.4 * pScaleMultiplier));
         }
 
-        // LIMITE AGGIORNATO PER IL 16:9 - Il KiBlast muore solo quando esce davvero dallo schermo!
         if (px > GamePanel.SCREEN_WIDTH + 100 || px < -100) {
             isDead = true;
         }
@@ -53,7 +57,7 @@ public class KiBlastProjectile {
             int[] bH = {124, 126, 105};
 
             // Rapportiamo le dimensioni
-            double drawScale = 0.25 * pScaleMultiplier;
+            double drawScale = 0.5 * pScaleMultiplier;
             int dW = (int)(bW[frame] * drawScale);
             int dH = (int)(bH[frame] * drawScale);
 

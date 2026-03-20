@@ -71,8 +71,16 @@ public abstract class Fighter {
     protected int comboCount   = 0;       // hit totali nella catena
     protected int comboWindowTimer = 0;   // finestra per continuare la combo
     protected final int COMBO_WINDOW = 30;
+    protected static final int FRAME_SPEED = 4; // ticks per sprite frame (a 60fps)
     protected double comboDamageScale = 1.0;
     protected boolean hasHit = false;     // ha già colpito in questo step
+
+    // Chain progressiva: tiene traccia degli input accumulati nella combo
+    protected int[] comboInputHistory = new int[8];
+    protected int comboHistoryLength = 0;
+    protected boolean wasFlying = false;   // era in volo prima della combo
+    protected boolean prevInLight = false;  // edge detection per combo chain
+    protected boolean prevInHeavy = false;
 
     // =============================================
     // ATTACCO SPECIALE / ULTIMATE
@@ -108,6 +116,10 @@ public abstract class Fighter {
     protected double auraEnergy     = 0;
     protected double MAX_AURA_ENERGY = 1200;
     protected double AURA_DRAIN_RATE = MAX_AURA_ENERGY / (double)600;
+    protected double auraDamageMultiplier = 1.3;   // +30% danno melee con aura
+    protected double auraKiRecharge      = 150.0;  // Ki ricaricato all'attivazione
+    protected int    auraHPRecover       = 25;     // HP recuperati all'attivazione
+    protected boolean auraBoostActive    = false;  // true finché l'aura è attiva (persiste tra stati)
 
     // =============================================
     // GUARD SYSTEM
@@ -130,7 +142,28 @@ public abstract class Fighter {
     protected int hitstunDuration = 20;
     protected int hitTimer        = 0;
     public boolean wallBounced    = false;
+    protected boolean hitWhileFlying = false; // resta in aria durante hitstun
     protected int invincibleTimer = 0;
+    protected int hitCooldown     = 0;        // frame minimi fra un hit e il successivo
+    protected final int HIT_COOLDOWN_FRAMES = 4;
+    protected int lightHitFlash   = 0;        // frame visivi di reazione al light (no stato)
+    protected final int LIGHT_HIT_FLASH_DURATION = 6;
+
+    // =============================================
+    // LAUNCHED STATE
+    // =============================================
+    protected boolean launchedUp    = true;  // true=launcher(su), false=spike(giù)
+    protected int launchPhase       = 0;     // 0=airborne, 1=ground recovery
+    protected int launchFrame       = 0;     // frame corrente nella fase
+    protected int launchAnimTimer   = 0;     // tick per avanzare frame
+
+    // =============================================
+    // KO STATE
+    // =============================================
+    protected boolean koFromAir     = false; // true se il KO è avvenuto in aria
+    protected int koPhase           = 0;     // fasi dell'animazione KO
+    protected int koFrame           = 0;     // frame corrente
+    protected int koAnimTimer       = 0;     // tick per avanzare frame
 
     // =============================================
     // Z-CANCEL
@@ -145,6 +178,7 @@ public abstract class Fighter {
     protected int flyNum       = 1;
     protected int flyMoveTimer = 0;
     protected int flyCooldown  = 0;
+    protected boolean flyingBeforeAction = false; // preserva volo durante teleport/charge/block
 
     // =============================================
     // TELEPORT
@@ -271,6 +305,7 @@ public abstract class Fighter {
     // START TELEPORT
     // =============================================
     protected void startTeleport(int offX, int offY, boolean faceRight) {
+        flyingBeforeAction = isFlying();
         setState(FighterState.TELEPORTING);
         teleportPhase   = 1;
         teleportFrame   = 6;
@@ -283,18 +318,35 @@ public abstract class Fighter {
     // =============================================
     // TAKE DAMAGE — integra tutti i sistemi
     // =============================================
+    // TAKE DAMAGE — versione completa con tutti i flag
+    // =============================================
     public void takeDamage(int amount, int appliedKnockback,
-                           boolean isEnergy, boolean isUnblockable) {
+                           boolean isEnergy, boolean isUnblockable,
+                           boolean isGuardBreaker, boolean isLauncher,
+                           boolean isSpikeDown) {
         // Immunità
         if (state == FighterState.KO)           return;
-        if (invincibleTimer > 0)                return;
         if (state == FighterState.GUARD_CRUSHED) return;
-        if (isInHitStun() && !wallBounced)      return;
+        if (invincibleTimer > 0)                return;
+        if (hitCooldown > 0)                    return;
 
         // Teleport = i-frames
         if (state == FighterState.TELEPORTING)  return;
 
         if (isBlocking() && !isUnblockable) {
+
+            // --- GUARD BREAKER: crush istantaneo, 0 danno HP ---
+            if (isGuardBreaker) {
+                guardHealth      = 0;
+                blockActiveTimer = 0;
+                isCountering     = false;
+                counterWindow    = 0;
+                setState(FighterState.GUARD_CRUSHED);
+                guardCrushTimer  = 0;
+                knockbackSpeed   = Math.max(1, appliedKnockback / 4);
+                return;
+            }
+
             // --- PERFECT GUARD ---
             boolean isPerfect = (blockActiveTimer <= PERFECT_GUARD_WINDOW) && !isEnergy;
             if (isPerfect) {
@@ -311,7 +363,7 @@ public abstract class Fighter {
             knockbackSpeed = appliedKnockback / 3;
             blockTimer++;
 
-            // --- GUARD CRUSH ---
+            // --- GUARD CRUSH (da accumulo) ---
             if (guardHealth <= 0) {
                 guardHealth      = 0;
                 blockActiveTimer = 0;
@@ -326,38 +378,98 @@ public abstract class Fighter {
             hp -= amount;
             if (hp < 0) hp = 0;
 
-            hitTimer         = 0;
-            wallBounced      = false;
-            hitstunDuration  = Math.max(12, Math.min(55, amount * 2));
-            knockbackSpeed   = appliedKnockback;
-
-            isCountering     = false;
-            counterWindow    = 0;
-            blockActiveTimer = 0;
-            zCancelAvailable = false;
-
-            // Interrompi qualsiasi azione
-            activeRoute  = null;
-            comboStep    = 0;
-            attackTimer  = 0;
-            specialTimer = 0;
-
-            // Launcher — manda in aria
-            if (isGrounded()) {
-                velocityY = -8.0;
+            // KO check immediato
+            if (hp <= 0) {
+                hitTimer        = 0;
+                hitCooldown     = HIT_COOLDOWN_FRAMES;
+                knockbackSpeed  = appliedKnockback;
+                activeRoute     = null; comboStep = 0;
+                attackTimer     = 0;    specialTimer = 0;
+                comboHistoryLength = 0; wasFlying = false;
+                koFromAir       = (y < groundY) || isFlying() || wasFlying;
+                koPhase         = 0; koFrame = 0; koAnimTimer = 0;
+                if (koFromAir) velocityY = 2.0; // cade lentamente
+                setState(FighterState.KO);
+                return;
             }
 
-            setState(hp <= 0 ? FighterState.KO : FighterState.HIT_STUN);
+            // =============================================
+            // COLPO "PESANTE" — launcher, spike, guard breaker
+            // Causa HIT_STUN pieno, sbalzo, nessuna azione possibile
+            // =============================================
+            boolean isHeavyHit = isLauncher || isSpikeDown || isGuardBreaker;
 
-            // Tumbling sotto 20% HP
-            if (hp > 0 && hp <= (int)(maxHP * 0.20))
-                setState(FighterState.TUMBLING);
+            if (isHeavyHit) {
+                hitCooldown      = HIT_COOLDOWN_FRAMES;
+                hitTimer         = 0;
+                wallBounced      = false;
+                hitstunDuration  = Math.max(12, Math.min(55, amount * 2));
+                knockbackSpeed   = appliedKnockback;
+
+                hitWhileFlying   = isFlying() || wasFlying;
+
+                isCountering     = false;
+                counterWindow    = 0;
+                blockActiveTimer = 0;
+                zCancelAvailable = false;
+
+                // Interrompi qualsiasi azione
+                activeRoute        = null;
+                comboStep          = 0;
+                attackTimer        = 0;
+                specialTimer       = 0;
+                comboHistoryLength = 0;
+                wasFlying          = false;
+
+                // Launcher — manda in aria con forza
+                if (isLauncher) {
+                    velocityY = -12.0;
+                    hitWhileFlying = false;
+                    launchedUp = true;
+                    launchPhase = 0; launchFrame = 0; launchAnimTimer = 0;
+                    setState(FighterState.LAUNCHED);
+                }
+                // Spike — schiaccia verso il basso
+                else if (isSpikeDown) {
+                    velocityY = 10.0;
+                    hitWhileFlying = false;
+                    launchedUp = false;
+                    launchPhase = 0; launchFrame = 0; launchAnimTimer = 0;
+                    setState(FighterState.LAUNCHED);
+                }
+                // Guard breaker fuori block — stun breve
+                else if (isGuardBreaker) {
+                    hitstunDuration = 25;
+                    setState(FighterState.HIT_STUN);
+                }
+
+                // Tumbling sotto 20% HP (solo per HIT_STUN, non LAUNCHED)
+                if (state == FighterState.HIT_STUN && hp > 0 && hp <= (int)(maxHP * 0.20))
+                    setState(FighterState.TUMBLING);
+            }
+            // =============================================
+            // COLPO "LEGGERO" — light attacks
+            // Solo danno, NESSUN pushback, NESSUN stato, NESSUN cooldown
+            // L'avversario resta fermo e puo' essere colpito dal prossimo light
+            // =============================================
+            else {
+                // Nessun hitCooldown, nessun knockback, nessun cambio di stato
+                lightHitFlash = LIGHT_HIT_FLASH_DURATION;
+            }
         }
     }
 
-    // Overload retrocompatibile (isUnblockable = false di default)
+    // Overload retrocompatibile a 4 parametri
+    public void takeDamage(int amount, int appliedKnockback,
+                           boolean isEnergy, boolean isUnblockable) {
+        takeDamage(amount, appliedKnockback, isEnergy, isUnblockable,
+                false, false, false);
+    }
+
+    // Overload retrocompatibile a 3 parametri
     public void takeDamage(int amount, int appliedKnockback, boolean isEnergy) {
-        takeDamage(amount, appliedKnockback, isEnergy, false);
+        takeDamage(amount, appliedKnockback, isEnergy, false,
+                false, false, false);
     }
 
     // =============================================
@@ -375,10 +487,39 @@ public abstract class Fighter {
         // --- KO ---
         if (state == FighterState.KO) {
             activeRoute = null; comboStep = 0;
+            comboHistoryLength = 0; wasFlying = false;
             inputBuffer.clear();
-            if (y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
-            endTimer++;
-            if (endTimer > 10) { if (endFrame < 7) endFrame++; endTimer = 0; }
+            koAnimTimer++;
+
+            if (koFromAir) {
+                // KO dall'aria: fase 0 = caduta, fase 1 = a terra
+                if (koPhase == 0) {
+                    velocityY += gravity;
+                    y += (int)velocityY;
+                    if (koAnimTimer % FRAME_SPEED == 0) koFrame++;
+                    if (koFrame > 1) koFrame = 1; // max 2 frame caduta
+                    if (y >= groundY) {
+                        y = groundY; velocityY = 0;
+                        koPhase = 1; koFrame = 0; koAnimTimer = 0;
+                    }
+                } else {
+                    // A terra: 3 frame poi stop
+                    if (koAnimTimer % FRAME_SPEED == 0) koFrame++;
+                    if (koFrame > 2) koFrame = 2; // ferma all'ultimo
+                }
+            } else {
+                // KO a terra: fase 0 = colpo (2f), fase 1 = transizione (1f), fase 2 = a terra (3f)
+                if (koPhase == 0) {
+                    if (koAnimTimer % FRAME_SPEED == 0) koFrame++;
+                    if (koFrame >= 2) { koPhase = 1; koFrame = 0; koAnimTimer = 0; }
+                } else if (koPhase == 1) {
+                    if (koAnimTimer % FRAME_SPEED == 0) koFrame++;
+                    if (koFrame >= 1) { koPhase = 2; koFrame = 0; koAnimTimer = 0; }
+                } else {
+                    if (koAnimTimer % FRAME_SPEED == 0) koFrame++;
+                    if (koFrame > 2) koFrame = 2; // ferma all'ultimo
+                }
+            }
             return;
         }
 
@@ -386,10 +527,13 @@ public abstract class Fighter {
         if (opponent != null && opponent.state == FighterState.KO) {
             setState(FighterState.WINNER);
             activeRoute = null; comboStep = 0;
+            comboHistoryLength = 0; wasFlying = false;
             inputBuffer.clear();
             if (!isFlying() && y < groundY) { velocityY += gravity; y += (int)velocityY; if (y >= groundY) { y = groundY; velocityY = 0; } }
             endTimer++;
-            if (endTimer > 15) { endFrame = (endFrame == 1) ? 2 : 1; endTimer = 0; }
+            if (endTimer % 15 == 0) { // avanza frame ogni 15 tick (~0.25s)
+                if (endFrame < 7) endFrame++;
+            }
             return;
         }
 
@@ -411,18 +555,58 @@ public abstract class Fighter {
             }
         }
 
+        // --- HIT COOLDOWN — protegge da multi-hit per frame (beam) ---
+        if (hitCooldown > 0) hitCooldown--;
+        if (lightHitFlash > 0) lightHitFlash--;
+
         // --- HIT STUN ---
         if (state == FighterState.HIT_STUN || state == FighterState.TUMBLING) {
             hitTimer++;
-            // Gravità durante hitstun
-            if (!isFlying() && y < groundY) {
-                velocityY += gravity; y += (int)velocityY;
+            // Fisica durante hitstun — solo se NON era in volo stazionario
+            if (!hitWhileFlying) {
+                velocityY += gravity;
+                y += (int)velocityY;
                 if (y >= groundY) { y = groundY; velocityY = 0; }
             }
             if (hitTimer > hitstunDuration) {
                 wallBounced      = false;
                 invincibleTimer  = 40;
-                setState(y < groundY ? FighterState.JUMPING : FighterState.IDLE);
+                if (hitWhileFlying) {
+                    setState(FighterState.FLYING_IDLE); // torna in volo
+                    hitWhileFlying = false;
+                } else {
+                    setState(FighterState.IDLE);
+                }
+            }
+            return;
+        }
+
+        // --- LAUNCHED — lanciato in aria da launcher/spike ---
+        // Fase 0: airborne (gravità), Fase 1: recovery a terra (7 frame)
+        if (state == FighterState.LAUNCHED) {
+            launchAnimTimer++;
+
+            if (launchPhase == 0) {
+                // Airborne — gravità attiva
+                velocityY += gravity;
+                y += (int)velocityY;
+                // Avanza frame ogni FRAME_SPEED tick
+                if (launchAnimTimer % FRAME_SPEED == 0) launchFrame++;
+                // Atterra
+                if (y >= groundY) {
+                    y = groundY;
+                    velocityY = 0;
+                    launchPhase = 1;
+                    launchFrame = 0;
+                    launchAnimTimer = 0;
+                }
+            } else {
+                // Ground recovery — 7 frame animati
+                if (launchAnimTimer % FRAME_SPEED == 0) launchFrame++;
+                if (launchFrame >= 7) {
+                    invincibleTimer = 40;
+                    setState(FighterState.IDLE);
+                }
             }
             return;
         }
@@ -439,6 +623,10 @@ public abstract class Fighter {
                 invincibleTimer = 40;
                 setState(FighterState.IDLE);
             }
+            prevUp    = inUp;
+            prevLeft  = inLeft;
+            prevRight = inRight;
+            prevDown  = inDown;
             return;
         }
 
@@ -467,15 +655,35 @@ public abstract class Fighter {
                 && state != FighterState.CHARGING_KI && opponent != null)
             facingRight = (x <= opponent.getX());
 
-        // --- BLOCCO ---
+        // --- BLOCCO (non durante hitstun/tumbling) ---
+        // Blocco in aria permesso SOLO se si sta volando, non durante salto/lancio
         boolean wasBlocking = isBlocking();
-        if (inBlock && !isAttacking() && state != FighterState.TELEPORTING
-                && state != FighterState.CHARGING_KI) {
-            boolean inAir = isFlying() || state == FighterState.JUMPING;
-            setState(inAir ? FighterState.BLOCKING_AIR : FighterState.BLOCKING);
+        boolean canBlock = inBlock && !isAttacking()
+                && state != FighterState.TELEPORTING
+                && state != FighterState.CHARGING_KI
+                && state != FighterState.HIT_STUN
+                && state != FighterState.TUMBLING
+                && state != FighterState.LAUNCHED;
+
+        if (canBlock) {
+            if (isFlying()) {
+                flyingBeforeAction = true;
+                setState(FighterState.BLOCKING_AIR);
+            } else if (y >= groundY) {
+                flyingBeforeAction = false;
+                setState(FighterState.BLOCKING); // solo a terra
+            }
+            // Se in aria da salto/lancio: NON può bloccare
         } else if (isBlocking()) {
-            setState(prevState == FighterState.JUMPING || prevState == FighterState.FLYING_IDLE
-                    ? FighterState.IDLE : FighterState.IDLE);
+            // Uscita dal blocco: ripristina stato corretto
+            if (flyingBeforeAction) {
+                setState(FighterState.FLYING_IDLE);
+                flyingBeforeAction = false;
+            } else if (y < groundY) {
+                setState(FighterState.JUMPING); // continua a cadere
+            } else {
+                setState(FighterState.IDLE);
+            }
         }
         if (isBlocking()) {
             if (!wasBlocking) blockActiveTimer = 0;
@@ -491,66 +699,86 @@ public abstract class Fighter {
         if (kiBreakTimer > 0) {
             kiBreakTimer--;
         } else {
-            double regenMult = (state == FighterState.AURA_ACTIVE) ? 2.0 : 1.0;
+            double regenMult = auraBoostActive ? 2.0 : 1.0;
             ki = Math.min(MAX_KI, ki + kiRegen * regenMult);
-        }
-
-        // Carica Ki manuale
-        if (inCharge && !isAttacking() && !isBlocking()
-                && state != FighterState.TELEPORTING) {
-            setState(FighterState.CHARGING_KI);
-            ki = Math.min(MAX_KI, ki + kiChargeRate);
-        } else if (state == FighterState.CHARGING_KI) {
-            setState(FighterState.IDLE);
         }
 
         // --- COMBO WINDOW timer ---
         if (comboWindowTimer > 0) {
             comboWindowTimer--;
-        } else if (comboCount > 0 && !isAttacking()) {
+        } else if ((comboCount > 0 || comboHistoryLength > 0) && !isAttacking()) {
             comboCount        = 0;
             comboDamageScale  = 1.0;
             activeRoute       = null;
             comboStep         = 0;
+            comboHistoryLength = 0;
+            wasFlying         = false;
         }
 
-        // --- AURA ---
+        // --- AURA ACTIVATION (tasto C, istantaneo quando barra piena) ---
         if (inCharge && auraEnergy >= MAX_AURA_ENERGY
-                && state != FighterState.AURA_ACTIVE
+                && !auraBoostActive
+                && state != FighterState.CHARGING_KI
+                && state != FighterState.TELEPORTING
                 && !isAttacking() && !isBlocking()) {
+            flyingBeforeAction = isFlying();
+            // Attivazione ISTANTANEA: boost + bonus subito
+            auraBoostActive = true;
+            hp = Math.min(maxHP, hp + auraHPRecover);
+            ki = Math.min(MAX_KI, ki + auraKiRecharge);
+            // Animazione di carica (solo visuale)
             setState(FighterState.CHARGING_KI);
             auraChargeTimer = 0;
             velocityY       = 0;
         }
-        if (state == FighterState.CHARGING_KI && auraEnergy >= MAX_AURA_ENERGY) {
+        // Animazione CHARGING_KI: pura estetica, il boost è già attivo
+        if (state == FighterState.CHARGING_KI) {
             auraChargeTimer++;
             if (auraChargeTimer >= AURA_CHARGE_DURATION) {
-                setState(FighterState.AURA_ACTIVE);
-                hp += 25; if (hp > maxHP) hp = maxHP;
+                if (flyingBeforeAction) {
+                    setState(FighterState.FLYING_IDLE);
+                    flyingBeforeAction = false;
+                } else {
+                    setState(FighterState.IDLE);
+                }
             }
         }
-        if (state == FighterState.AURA_ACTIVE) {
+        // Aura boost: drain e buff attivi finché auraBoostActive è true
+        if (auraBoostActive) {
             speed        = (int)(8 * scale);
-            jumpStrength = -15 * scale;
+            jumpStrength = -18 * scale;
             auraEnergy  -= AURA_DRAIN_RATE;
-            if (auraEnergy <= 0) { auraEnergy = 0; setState(FighterState.IDLE); }
-        } else {
+            if (auraEnergy <= 0) {
+                auraEnergy       = 0;
+                auraBoostActive  = false;
+            }
+        } else if (state != FighterState.CHARGING_KI) {
             speed        = (int)(4 * scale);
             jumpStrength = -12 * scale;
-            if (auraEnergy < MAX_AURA_ENERGY && state != FighterState.CHARGING_KI)
+            if (auraEnergy < MAX_AURA_ENERGY)
                 auraEnergy++;
         }
 
-        // Animazione aura
-        if (state == FighterState.CHARGING_KI || state == FighterState.AURA_ACTIVE) {
+        // Animazione aura (visibile durante qualsiasi azione finché il boost è attivo)
+        if (state == FighterState.CHARGING_KI || auraBoostActive) {
             auraAnimTimer++;
             if (auraAnimTimer > 4) { auraFrame++; if (auraFrame > 3) auraFrame = 0; auraAnimTimer = 0; }
-            if (auraImage != null && Math.random() < 0.15) {
-                int rX = x + (int)(Math.random() * baseWidth * 1.5) - (int)(baseWidth * 0.25);
-                int rY = y - (int)(Math.random() * baseHeight);
-                activeEffects.add(new VisualEffect(auraImage, rX, rY,
-                        new int[]{129, 197}, new int[]{985, 894},
-                        new int[]{66, 72}, new int[]{106, 79}, 3, scale * 0.6));
+            if (auraImage != null && Math.random() < 0.10) {
+                // Particelle intorno al corpo
+                int rX = x + (int)(Math.random() * baseWidth) - (int)(baseWidth * 0.1);
+                int rY = y + (int)(baseHeight * 0.2) + (int)(Math.random() * baseHeight * 0.6);
+                // Alterna tra fulmine grande e piccolo
+                if (Math.random() < 0.5) {
+                    // Fulmine 1 (più grande)
+                    activeEffects.add(new VisualEffect(auraImage, rX, rY,
+                            new int[]{129}, new int[]{895},
+                            new int[]{66}, new int[]{107}, 4, scale * 0.5));
+                } else {
+                    // Fulmine 2 (più piccolo)
+                    activeEffects.add(new VisualEffect(auraImage, rX, rY,
+                            new int[]{199}, new int[]{894},
+                            new int[]{72}, new int[]{79}, 4, scale * 0.5));
+                }
             }
         } else { auraFrame = 0; }
 
@@ -571,6 +799,8 @@ public abstract class Fighter {
         // LOGICA PRINCIPALE — solo se non bloccati
         // =============================================
         if (!isBlocking() && !isInHitStun()
+                && state != FighterState.TUMBLING
+                && state != FighterState.LAUNCHED
                 && state != FighterState.CHARGING_KI
                 && state != FighterState.GUARD_CRUSHED) {
 
@@ -592,42 +822,86 @@ public abstract class Fighter {
                         if (teleportFrame < 1) {
                             x += targetOffsetX; y += targetOffsetY;
                             if (y > groundY) y = groundY;
-                            if (isFlying() && y > groundY - (int)(40 * scale)) y = groundY - (int)(40 * scale);
+                            if (flyingBeforeAction && y > groundY - (int)(40 * scale))
+                                y = groundY - (int)(40 * scale);
                             teleportPhase = 2; teleportFrame = 1;
                         }
                     } else {
                         teleportFrame++;
-                        if (teleportFrame > 6) { setState(FighterState.IDLE); teleportPhase = 1; teleportFrame = 6; }
+                        if (teleportFrame > 6) {
+                            if (flyingBeforeAction) {
+                                setState(FighterState.FLYING_IDLE);
+                            } else if (y < groundY) {
+                                setState(FighterState.JUMPING);
+                            } else {
+                                setState(FighterState.IDLE);
+                            }
+                            flyingBeforeAction = false;
+                            teleportPhase = 1; teleportFrame = 6;
+                        }
                     }
                 }
             }
 
-            // --- NEO COMBO ---
+            // --- Z-CANCEL: interrompe la combo corrente spendendo Ki ---
+            if (isAttacking() && zCancelAvailable
+                    && inBlock && ki >= Z_CANCEL_COST) {
+                ki -= Z_CANCEL_COST;
+                activeRoute      = null;
+                comboStep        = 0;
+                attackTimer      = 0;
+                zCancelAvailable = false;
+                comboHistoryLength = 0;
+                setState(wasFlying ? FighterState.FLYING_IDLE
+                        : (y < groundY ? FighterState.JUMPING : FighterState.IDLE));
+                wasFlying = false;
+            }
+
+            // --- NEO COMBO (Chain Progressiva) ---
             if (!isAttacking() && state != FighterState.TELEPORTING) {
 
-                // Z-CANCEL: interrompe la combo corrente spendendo Ki
-                if (isAttacking() && zCancelAvailable
-                        && inBlock && ki >= Z_CANCEL_COST) {
-                    ki -= Z_CANCEL_COST;
-                    activeRoute      = null;
-                    comboStep        = 0;
-                    attackTimer      = 0;
-                    zCancelAvailable = false;
-                    setState(FighterState.IDLE);
-                }
+                // Edge detection: solo nuove pressioni, non tasto tenuto
+                boolean newLightPress = inLight && !prevInLight;
+                boolean newHeavyPress = inHeavy && !prevInHeavy;
 
-                // Cerca una combo che matchi l'input buffer
-                if (inLight || inHeavy) {
-                    ComboRoute matched = findMatchingRoute();
+                if (newLightPress || newHeavyPress) {
+                    int newInput = newHeavyPress ? ComboRoute.HEAVY : ComboRoute.LIGHT;
+
+                    // Estendi la chain se siamo nella finestra, altrimenti ricomincia
+                    if (comboWindowTimer > 0 && comboHistoryLength > 0) {
+                        if (comboHistoryLength < comboInputHistory.length) {
+                            comboInputHistory[comboHistoryLength] = newInput;
+                            comboHistoryLength++;
+                        }
+                    } else {
+                        comboInputHistory[0] = newInput;
+                        comboHistoryLength = 1;
+                        wasFlying = false;
+                    }
+
+                    // Cerca la route che matcha esattamente la chain accumulata
+                    ComboRoute matched = findMatchingChainRoute(opponent);
+
+                    // Se non matcha, prova con solo il nuovo input (nuova chain)
+                    if (matched == null && comboHistoryLength > 1) {
+                        comboInputHistory[0] = newInput;
+                        comboHistoryLength = 1;
+                        wasFlying = false;
+                        matched = findMatchingChainRoute(opponent);
+                    }
+
                     if (matched != null) {
+                        // Salva lo stato volo SOLO al primo attacco della chain
+                        if (!isAttacking() && comboHistoryLength == 1) {
+                            wasFlying = isFlying();
+                        }
                         activeRoute  = matched;
-                        comboStep    = matched.length() - 1; // step corrente
+                        comboStep    = matched.length() - 1; // esegui l'ultimo step
                         attackTimer  = 0;
                         hasHit       = false;
-                        setState(inputBuffer.lastInput() == ComboRoute.HEAVY
+                        setState(newInput == ComboRoute.HEAVY
                                 ? FighterState.COMBO_HEAVY
                                 : FighterState.COMBO_LIGHT);
-                        inputBuffer.consume();
                     }
                 }
 
@@ -637,6 +911,7 @@ public abstract class Fighter {
                         && state != FighterState.SPECIAL_STARTUP) {
                     ki -= kiBlastKiCost;
                     if (ki <= 0) { ki = 0; kiBreakTimer = KI_BREAK_DURATION; }
+                    flyingBeforeAction = isFlying();
                     setState(FighterState.SPECIAL_STARTUP);
                     specialTimer = 0;
                     spawnKiBlastVFX();
@@ -646,6 +921,7 @@ public abstract class Fighter {
                 if (inUltimate && specialEnergy >= MAX_SPECIAL_ENERGY
                         && ki >= 50 && kiBreakTimer == 0) {
                     ki -= 50;
+                    flyingBeforeAction = isFlying();
                     setState(FighterState.ULTIMATE_STARTUP);
                     specialTimer = 0;
                 }
@@ -666,6 +942,9 @@ public abstract class Fighter {
                         comboDamageScale  = Math.max(0.30, 1.0 - (comboCount - 1) * 0.08);
                         int finalDamage   = (int)(atk.damage * comboDamageScale);
 
+                        // Aura boost: +30% danno melee
+                        if (auraBoostActive) finalDamage = (int)(finalDamage * auraDamageMultiplier);
+
                         // Counter bonus
                         if (isCountering) {
                             finalDamage   = (int)(finalDamage * 1.5);
@@ -674,7 +953,9 @@ public abstract class Fighter {
                         }
 
                         opponent.takeDamage(finalDamage, atk.knockback,
-                                atk.isEnergy, atk.isUnblockable);
+                                atk.isEnergy, atk.isUnblockable,
+                                atk.isGuardBreaker, atk.isLauncher,
+                                atk.causesCrumple);
                         ki = Math.min(MAX_KI, ki + kiOnHitReward);
                         hasHit           = true;
                         zCancelAvailable = true;
@@ -683,20 +964,20 @@ public abstract class Fighter {
 
                 // Fine di questo step della combo
                 if (attackTimer >= atk.totalDuration()) {
-                    attackTimer = 0;
-                    hasHit      = false;
+                    attackTimer      = 0;
+                    hasHit           = false;
+                    activeRoute      = null;
+                    comboStep        = 0;
+                    zCancelAvailable = false;
+                    comboWindowTimer = COMBO_WINDOW; // finestra per estendere la chain
 
-                    // Avanza al prossimo step se c'è
-                    if (comboStep + 1 < activeRoute.length()) {
-                        comboStep++;
-                        // Aspetta il prossimo input nel COMBO_WINDOW
-                        setState(FighterState.IDLE);
+                    // Ripristina lo stato corretto
+                    if (wasFlying) {
+                        setState(FighterState.FLYING_IDLE);
+                    } else if (y < groundY) {
+                        setState(FighterState.JUMPING); // era in salto, gravità riprende
                     } else {
-                        // Combo finita
-                        activeRoute      = null;
-                        comboStep        = 0;
-                        zCancelAvailable = false;
-                        setState(isFlying() ? FighterState.FLYING_IDLE : FighterState.IDLE);
+                        setState(FighterState.IDLE);
                     }
                 }
             }
@@ -704,8 +985,15 @@ public abstract class Fighter {
             // --- SPECIAL update ---
             if (state == FighterState.SPECIAL_STARTUP) {
                 specialTimer++;
-                if (specialTimer == 7) fireKiBlastProjectile();
-                if (specialTimer >= 15) setState(FighterState.IDLE);
+                if (specialTimer == 17) fireKiBlastProjectile(); // 5° frame (4*4+1)
+                if (specialTimer >= 24) {
+                    if (flyingBeforeAction) {
+                        setState(FighterState.FLYING_IDLE);
+                        flyingBeforeAction = false;
+                    } else {
+                        setState(FighterState.IDLE);
+                    }
+                }
             }
 
             // --- ULTIMATE update ---
@@ -718,13 +1006,24 @@ public abstract class Fighter {
                 Rectangle hitbox = getUltimateHitbox();
                 if (hitbox != null && opponent != null
                         && hitbox.intersects(opponent.getBounds())) {
-                    int finalDamage = specialDamage;
-                    if (isCountering) { finalDamage = (int)(finalDamage * 1.5); isCountering = false; }
-                    opponent.takeDamage(finalDamage, (int)(40 * scale), true);
-                    onUltimateHit(opponent);
+                    // Multi-hit: 4 colpi da 12 HP distribuiti nella durata del beam
+                    int beamTick = specialTimer - SPECIAL_CHARGE;
+                    int hitInterval = SPECIAL_DURATION / 4; // ~22 frame tra un hit e l'altro
+                    if (beamTick % hitInterval == 0 && beamTick <= SPECIAL_DURATION) {
+                        int finalDamage = 12;
+                        if (isCountering) { finalDamage = (int)(finalDamage * 1.5); isCountering = false; }
+                        if (auraBoostActive) finalDamage = (int)(finalDamage * auraDamageMultiplier);
+                        opponent.takeDamage(finalDamage, (int)(8 * scale), true);
+                        onUltimateHit(opponent);
+                    }
                 }
                 if (specialTimer >= SPECIAL_CHARGE + SPECIAL_DURATION) {
-                    setState(FighterState.IDLE);
+                    if (flyingBeforeAction) {
+                        setState(FighterState.FLYING_IDLE);
+                        flyingBeforeAction = false;
+                    } else {
+                        setState(FighterState.IDLE);
+                    }
                     specialTimer = 0;
                 }
             }
@@ -733,16 +1032,20 @@ public abstract class Fighter {
             for (int i = 0; i < activeBlasts.size(); i++) {
                 KiBlastProjectile blast = activeBlasts.get(i);
                 blast.update(activeEffects);
-                Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(10 * scale),
-                        (int)(40 * scale), (int)(20 * scale));
+                Rectangle blastHitbox = new Rectangle(blast.px, blast.py - (int)(30 * scale),
+                        (int)(80 * scale), (int)(60 * scale));
                 if (opponent != null && blastHitbox.intersects(opponent.getBounds())) {
                     opponent.takeDamage(kiBlastDamage, (int)(15 * scale), true);
-                    int impX = blast.pFacingRight ? opponent.getX() + 10 : opponent.getX() + opponent.baseWidth - 10;
-                    int impY = opponent.y + (opponent.baseHeight / 2);
+                    // Impatto al punto reale del blast, non al centro dell'avversario
+                    int impX = blast.pFacingRight
+                            ? opponent.getX()                          // colpisce dal lato sinistro
+                            : opponent.getX() + opponent.baseWidth;    // colpisce dal lato destro
+                    int impY = blast.py;
                     opponent.activeEffects.add(new VisualEffect(blast.img, impX, impY,
                             new int[]{260, 0, 86}, new int[]{135, 448, 448},
                             new int[]{126, 70, 70}, new int[]{109, 64, 64},
-                            new int[]{0, 0, 0}, new int[]{-40, -40, -40}, 6, 0.5 * scale));
+                            new int[]{0, 0, 0}, new int[]{0, 0, 0}, 5, 0.8 * scale,
+                            blast.pFacingRight)); // flip in base alla direzione del blast
                     activeBlasts.remove(i); i--; continue;
                 }
                 if (blast.isDead) { activeBlasts.remove(i); i--; }
@@ -788,8 +1091,12 @@ public abstract class Fighter {
                     }
                 }
             } else if (!isAttacking() && state != FighterState.TELEPORTING) {
-                // Movimento a terra
-                if (state != FighterState.CROUCHING) {
+                // Movimento a terra / orizzontale in salto
+                if (state == FighterState.JUMPING) {
+                    // In salto: consenti movimento orizzontale senza cambiare stato
+                    if (inLeft)  { x -= speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed; }
+                    if (inRight) { x += speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed; }
+                } else if (state != FighterState.CROUCHING) {
                     if (inLeft)  { x -= speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x += speed; setState(FighterState.WALKING); }
                     else if (inRight) { x += speed; if (opponent != null && getBounds().intersects(opponent.getBounds())) x -= speed; setState(FighterState.WALKING); }
                     else if (state == FighterState.WALKING) setState(FighterState.IDLE);
@@ -819,26 +1126,41 @@ public abstract class Fighter {
             if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
         }
 
-        prevUp    = inUp;
-        prevLeft  = inLeft;
-        prevRight = inRight;
-        prevDown  = inDown;
+        prevUp      = inUp;
+        prevLeft    = inLeft;
+        prevRight   = inRight;
+        prevDown    = inDown;
+        prevInLight = inLight;
+        prevInHeavy = inHeavy;
     }
 
     // =============================================
-    // FIND MATCHING ROUTE — cerca la combo
-    // che matcha l'input buffer corrente
+    // FIND MATCHING CHAIN ROUTE — cerca la combo
+    // che matcha la chain di input accumulata
     // =============================================
-    protected ComboRoute findMatchingRoute() {
-        if (comboRoutes == null) return null;
-        boolean inAir = isFlying() || state == FighterState.JUMPING;
-        boolean aura  = state == FighterState.AURA_ACTIVE;
+    protected ComboRoute findMatchingChainRoute(Fighter opponent) {
+        if (comboRoutes == null || comboHistoryLength == 0) return null;
 
-        // Priorità: route più lunghe prima (più specifiche)
+        // Se siamo già in una combo chain, usa wasFlying per determinare aria/terra
+        boolean inAir = isAttacking() ? wasFlying
+                : (isFlying() || state == FighterState.JUMPING);
+        boolean aura  = auraBoostActive;
+
         ComboRoute best = null;
         for (ComboRoute route : comboRoutes) {
             if (!route.isExecutable(aura, inAir)) continue;
-            if (inputBuffer.matches(route.inputSequence)) {
+
+            // Match esatto: la route deve avere la stessa lunghezza della chain
+            if (route.length() != comboHistoryLength) continue;
+
+            boolean matches = true;
+            for (int i = 0; i < comboHistoryLength; i++) {
+                if (route.inputSequence[i] != comboInputHistory[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
                 if (best == null || route.length() > best.length())
                     best = route;
             }
@@ -895,10 +1217,10 @@ public abstract class Fighter {
     }
 
     protected void drawAura(Graphics2D g2d) {
-        if ((state == FighterState.CHARGING_KI || state == FighterState.AURA_ACTIVE) && auraImage != null) {
+        if ((state == FighterState.CHARGING_KI || auraBoostActive) && auraImage != null) {
             int[] aX = {3, 357, 4, 368}, aY = {4, 4, 454, 440};
             int[] aW = {350, 345, 359, 356}, aH = {446, 432, 437, 417};
-            double auraDrawScale = 0.45 * scale;
+            double auraDrawScale = 0.65 * scale; // ingrandita da 0.45 a 0.65
             int dAW = (int)(aW[auraFrame] * auraDrawScale), dAH = (int)(aH[auraFrame] * auraDrawScale);
             int dAX = x + (baseWidth - dAW) / 2;
             int dAY = y - (dAH - baseHeight) + (int)(20 * scale);
@@ -1021,7 +1343,7 @@ public abstract class Fighter {
         double kiPercent = ki / MAX_KI;
         Color kiColor = kiBreakTimer > 0
                 ? (kiBreakTimer % 10 < 5 ? new Color(255, 130, 0) : new Color(90, 40, 0))
-                : (state == FighterState.AURA_ACTIVE ? new Color(160, 220, 255) : new Color(70, 150, 255));
+                : (auraBoostActive ? new Color(160, 220, 255) : new Color(70, 150, 255));
         String kiLabel = kiBreakTimer > 0 ? "KI BREAK!" : "KI";
         Color kiLabelColor = kiBreakTimer > 0 ? new Color(255, 130, 0) : new Color(70, 150, 255);
         drawBar(g2d, barsAreaStart, barsAreaEnd, barsStartY + barGap * 3,

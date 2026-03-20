@@ -352,22 +352,26 @@ public class UIManager {
         int startY = 180, spacing = 45, p1X = 150, p2X = GamePanel.SCREEN_WIDTH - 450;
         g2d.setColor(Color.CYAN); setCustomFont(g2d, 50f); g2d.drawString("PLAYER ONE", p1X, startY);
         g2d.setFont(new Font("Arial", Font.BOLD, 22)); g2d.setColor(Color.WHITE);
+        g2d.drawString("W, A, S, D - Move / Jump", p1X, startY + spacing);
+        g2d.drawString("W, A, S, D (Double Tap) - Teleport", p1X, startY + spacing * 2);
         g2d.drawString("F - Light Attack", p1X, startY + spacing * 3);
         g2d.drawString("R - Heavy Attack", p1X, startY + spacing * 4);
         g2d.drawString("E - Ki Blast (Special)", p1X, startY + spacing * 5);
         g2d.drawString("Z - Ultimate", p1X, startY + spacing * 6);
         g2d.drawString("V - Fly", p1X, startY + spacing * 7);
-        g2d.drawString("C - Charge Ki", p1X, startY + spacing * 8);
+        g2d.drawString("C - Activate Aura", p1X, startY + spacing * 8);
         g2d.drawString("Q - Block / Z-Cancel", p1X, startY + spacing * 9);
 
         g2d.setColor(Color.RED); setCustomFont(g2d, 50f); g2d.drawString("PLAYER TWO", p2X, startY);
         g2d.setFont(new Font("Arial", Font.BOLD, 22)); g2d.setColor(Color.WHITE);
+        g2d.drawString("Arrows - Move / Jump", p2X, startY + spacing);
+        g2d.drawString("Arrows (Double Tap) - Teleport", p2X, startY + spacing * 2);
         g2d.drawString("L - Light Attack", p2X, startY + spacing * 3);
         g2d.drawString("P - Heavy Attack", p2X, startY + spacing * 4);
         g2d.drawString("O - Ki Blast (Special)", p2X, startY + spacing * 5);
         g2d.drawString("K - Ultimate", p2X, startY + spacing * 6);
         g2d.drawString("N - Fly", p2X, startY + spacing * 7);
-        g2d.drawString("M - Charge Ki", p2X, startY + spacing * 8);
+        g2d.drawString("M - Activate Aura", p2X, startY + spacing * 8);
         g2d.drawString("U - Block / Z-Cancel", p2X, startY + spacing * 9);
 
         g2d.setColor(Color.GRAY); setCustomFont(g2d, 35f); g2d.drawString("Press BLOCK to return to Menu", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("Press BLOCK to return to Menu")) / 2, 680);

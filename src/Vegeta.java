@@ -235,7 +235,7 @@ public class Vegeta extends Fighter {
         // Animazione walking
         if (state == FighterState.WALKING) {
             spriteCounter++;
-            if (spriteCounter > (state == FighterState.AURA_ACTIVE ? 3 : 5)) {
+            if (spriteCounter > (auraBoostActive ? 3 : 5)) {
                 spriteNum++;
                 if (spriteNum > 3) spriteNum = 1;
                 spriteCounter = 0;
@@ -278,6 +278,12 @@ public class Vegeta extends Fighter {
             case HIT_STUN, TUMBLING -> {
                 srcY = 784; srcW = 75; srcH = 79;
                 srcX = (hitTimer <= hitstunDuration / 2) ? 0 : 200;
+            }
+
+            case LAUNCHED -> {
+                // Placeholder — usa sprite HIT_STUN
+                srcY = 784; srcW = 75; srcH = 79;
+                srcX = 200;
             }
 
             case CHARGING_KI -> {
