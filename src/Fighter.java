@@ -166,6 +166,29 @@ public abstract class Fighter {
     protected int koAnimTimer       = 0;     // tick per avanzare frame
 
     // =============================================
+    // CINEMATIC ULTIMATE
+    // =============================================
+    protected int cinematicPhase    = 0;     // 0=darkFadeIn 1=transform 2=beam 3=flash 4=fadeOut
+    protected int cinematicTimer    = 0;     // tick nel passo corrente
+    protected int cinematicFrame    = 0;     // frame animazione corrente
+    protected float cinematicAlpha  = 0f;    // alpha overlay (0-1)
+    protected boolean cinematicActive = false;
+    protected int cinematicSavedX   = 0;
+    protected int cinematicSavedY   = 0;
+    protected int cinematicOpponentSavedX = 0;
+    protected int cinematicOpponentSavedY = 0;
+    protected int cinematicHitsDealt = 0;
+    protected int cinematicStep     = 0;     // step nella sequenza di trasformazione
+    protected int cinematicVibrateX = 0;     // offset vibrazione orizzontale
+    protected boolean cinematicShowAura     = false;
+    protected boolean cinematicShowLightning = false;
+    protected boolean cinematicShowExplosion = false;
+    protected boolean cinematicPostBeam   = false;  // true = Goku in SSJ3 sul campo dopo il beam
+    protected int cinematicPostFrame      = 0;      // frame SSJ3 durante post-beam
+    public static final int CINEMATIC_TOTAL_DAMAGE = 50;
+    public static final int CINEMATIC_NUM_HITS = 5;
+
+    // =============================================
     // Z-CANCEL
     // =============================================
     protected final double Z_CANCEL_COST = 60.0;
@@ -259,7 +282,8 @@ public abstract class Fighter {
                 FighterState.SPECIAL_STARTUP,
                 FighterState.SPECIAL_ACTIVE,
                 FighterState.ULTIMATE_STARTUP,
-                FighterState.ULTIMATE_ACTIVE);
+                FighterState.ULTIMATE_ACTIVE,
+                FighterState.CINEMATIC_ULTIMATE);
     }
     public boolean isInHitStun()    { return state == FighterState.HIT_STUN;      }
     public boolean isBlocking()     { return isInState(FighterState.BLOCKING,
@@ -482,6 +506,16 @@ public abstract class Fighter {
             VisualEffect eff = activeEffects.get(i);
             eff.update();
             if (eff.isDead) { activeEffects.remove(i); i--; }
+        }
+
+        // --- CINEMATIC ULTIMATE ---
+        if (cinematicActive) {
+            updateCinematicUltimate(opponent);
+            return; // Blocca TUTTO il resto durante la cinematica
+        }
+        // Se L'AVVERSARIO ha la cinematica attiva, questo fighter è congelato
+        if (state == FighterState.CINEMATIC_ULTIMATE) {
+            return;
         }
 
         // --- KO ---
@@ -917,9 +951,20 @@ public abstract class Fighter {
                     spawnKiBlastVFX();
                 }
 
-                // ULTIMATE
-                if (inUltimate && specialEnergy >= MAX_SPECIAL_ENERGY
-                        && ki >= 50 && kiBreakTimer == 0) {
+                // CINEMATIC ULTIMATE (condizioni speciali: tutte e 3 le barre piene + avversario lanciato)
+                if (inUltimate && ki >= MAX_KI
+                        && specialEnergy >= MAX_SPECIAL_ENERGY
+                        && auraEnergy >= MAX_AURA_ENERGY
+                        && opponent != null
+                        && opponent.state == FighterState.LAUNCHED
+                        && opponent.launchedUp
+                        && !cinematicActive) {
+                    startCinematicUltimate(opponent);
+                }
+                // ULTIMATE (Kamehameha normale)
+                else if (inUltimate && specialEnergy >= MAX_SPECIAL_ENERGY
+                        && ki >= 50 && kiBreakTimer == 0
+                        && !cinematicActive) {
                     ki -= 50;
                     flyingBeforeAction = isFlying();
                     setState(FighterState.ULTIMATE_STARTUP);
@@ -1205,6 +1250,206 @@ public abstract class Fighter {
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
+    // =============================================
+    // CINEMATIC ULTIMATE — metodi
+    // =============================================
+    protected void startCinematicUltimate(Fighter opponent) {
+        cinematicActive = true;
+        cinematicPhase  = 0;
+        cinematicTimer  = 0;
+        cinematicFrame  = 0;
+        cinematicAlpha  = 0f;
+        cinematicHitsDealt = 0;
+        cinematicStep   = 0;
+        cinematicVibrateX = 0;
+        cinematicShowAura = false;
+        cinematicShowLightning = false;
+        cinematicShowExplosion = false;
+        setState(FighterState.CINEMATIC_ULTIMATE);
+        // Salva posizioni
+        cinematicSavedX = x;
+        cinematicSavedY = y;
+        cinematicOpponentSavedX = opponent.x;
+        cinematicOpponentSavedY = opponent.y;
+        // Consuma tutte le barre
+        ki = 0;
+        specialEnergy = 0;
+        auraEnergy = 0;
+        auraBoostActive = false;
+        // Congela l'avversario
+        opponent.setState(FighterState.CINEMATIC_ULTIMATE);
+        opponent.velocityY = 0;
+    }
+
+    protected void updateCinematicUltimate(Fighter opponent) {
+        cinematicTimer++;
+
+        switch (cinematicPhase) {
+            case 0: // DARK FADE IN (50 tick)
+                cinematicAlpha = Math.min(1f, cinematicTimer / 50f);
+                if (cinematicTimer >= 50) {
+                    cinematicPhase = 1;
+                    cinematicTimer = 0;
+                    cinematicStep  = 0;
+                    cinematicFrame = 0;
+                }
+                break;
+
+            case 1: // SSJ3 TRANSFORMATION — sequenza a step
+                switch (cinematicStep) {
+                    case 0: // Frame 0 — posa iniziale
+                        cinematicFrame = 0;
+                        cinematicShowExplosion = false;
+                        cinematicShowLightning = false;
+                        cinematicShowAura = false;
+                        cinematicVibrateX = 0;
+                        if (cinematicTimer >= 20) { cinematicStep = 1; cinematicTimer = 0; }
+                        break;
+                    case 1: // Esplosione
+                        cinematicShowExplosion = true;
+                        cinematicFrame = 0;
+                        if (cinematicTimer >= 25) { cinematicStep = 2; cinematicTimer = 0; cinematicShowExplosion = false; }
+                        break;
+                    case 2: // Frame 1 — carica aura, vibra, fulmini
+                        cinematicFrame = 1;
+                        cinematicShowLightning = true;
+                        cinematicVibrateX = (cinematicTimer % 4 < 2) ? -4 : 4;
+                        if (cinematicTimer >= 50) { cinematicStep = 3; cinematicTimer = 0; cinematicVibrateX = 0; }
+                        break;
+                    case 3: // Frame 2
+                        cinematicFrame = 2;
+                        if (cinematicTimer >= 20) { cinematicStep = 4; cinematicTimer = 0; }
+                        break;
+                    case 4: // Frame 3-4 alternati — SSJ3, aura + vibra
+                        cinematicShowAura = true;
+                        cinematicFrame = (cinematicTimer % 8 < 4) ? 3 : 4;
+                        cinematicVibrateX = (cinematicTimer % 4 < 2) ? -3 : 3;
+                        if (cinematicTimer >= 70) { cinematicStep = 5; cinematicTimer = 0; cinematicShowAura = false; cinematicVibrateX = 0; }
+                        break;
+                    case 5: // Frame 5
+                        cinematicFrame = 5;
+                        if (cinematicTimer >= 20) { cinematicStep = 6; cinematicTimer = 0; }
+                        break;
+                    case 6: // Frame 6
+                        cinematicFrame = 6;
+                        if (cinematicTimer >= 20) { cinematicStep = 7; cinematicTimer = 0; }
+                        break;
+                    case 7: // Frame 7 — carica onda, NO fulmini
+                        cinematicFrame = 7;
+                        cinematicShowLightning = false;
+                        if (cinematicTimer >= 70) { cinematicStep = 8; cinematicTimer = 0; }
+                        break;
+                    case 8: // Frame 8
+                        cinematicFrame = 8;
+                        if (cinematicTimer >= 20) { cinematicStep = 9; cinematicTimer = 0; }
+                        break;
+                    case 9: // Frame 9
+                        cinematicFrame = 9;
+                        if (cinematicTimer >= 20) { cinematicStep = 10; cinematicTimer = 0; }
+                        break;
+                    case 10: // Frame 10
+                        cinematicFrame = 10;
+                        if (cinematicTimer >= 20) { cinematicStep = 11; cinematicTimer = 0; }
+                        break;
+                    case 11: // Frame 11 — ultimo
+                        cinematicFrame = 11;
+                        if (cinematicTimer >= 60) {
+                            cinematicPhase = 2; cinematicTimer = 0;
+                            cinematicShowLightning = false;
+                            cinematicShowAura = false;
+                            cinematicVibrateX = 0;
+                        }
+                        break;
+                }
+                break;
+
+            case 2: // BEAM + MULTI HIT (90 tick)
+                cinematicAlpha = 1f;
+                int hitInterval = 120 / CINEMATIC_NUM_HITS;
+                if (cinematicTimer % hitInterval == 0 && cinematicHitsDealt < CINEMATIC_NUM_HITS) {
+                    int dmg = CINEMATIC_TOTAL_DAMAGE / CINEMATIC_NUM_HITS;
+                    opponent.hp -= dmg;
+                    if (opponent.hp < 0) opponent.hp = 0;
+                    cinematicHitsDealt++;
+                }
+                if (cinematicTimer >= 120) { cinematicPhase = 3; cinematicTimer = 0; }
+                break;
+
+            case 3: // WHITE FLASH (60 tick)
+                if (cinematicTimer < 30) cinematicAlpha = 1f;
+                else cinematicAlpha = 1f - ((cinematicTimer - 30) / 30f);
+                if (cinematicTimer >= 60) {
+                    cinematicPhase = 4;
+                    cinematicTimer = 0;
+                    cinematicPostBeam = true;
+                    cinematicPostFrame = 5;
+                    // Ripristina posizioni sul campo
+                    x = cinematicSavedX;
+                    y = cinematicSavedY;
+                    opponent.x = cinematicOpponentSavedX;
+                    opponent.y = cinematicOpponentSavedY;
+                    // Avversario visibile: lanciato o KO
+                    if (opponent.hp <= 0) {
+                        opponent.setState(FighterState.KO);
+                        opponent.koFromAir = true;
+                        opponent.koPhase = 0; opponent.koFrame = 0; opponent.koAnimTimer = 0;
+                    } else {
+                        opponent.setState(FighterState.LAUNCHED);
+                        opponent.launchedUp = false;
+                        opponent.launchPhase = 0; opponent.launchFrame = 0; opponent.launchAnimTimer = 0;
+                        opponent.velocityY = 0; // fermo durante fase 4
+                    }
+                }
+                break;
+
+            case 4: // SSJ3 ON BATTLEFIELD — poi flash bianco — poi SSJ2
+                cinematicAlpha = 0f;
+                cinematicPostBeam = true; // resta true per tutte le sotto-fasi
+                if (cinematicTimer < 50) {
+                    cinematicPostFrame = 5;       // SSJ3
+                } else if (cinematicTimer < 65) {
+                    cinematicPostFrame = 99;      // flash bianco SSJ2
+                } else {
+                    cinematicPostFrame = -1;      // SSJ2 normale (idle)
+                }
+                if (cinematicTimer >= 80) {
+                    cinematicPhase = 5;
+                    cinematicTimer = 0;
+                    cinematicPostBeam = false;
+                }
+                break;
+
+            case 5: // RETURN TO GAMEPLAY (20 tick)
+                cinematicAlpha = 0f;
+                if (cinematicTimer >= 20) endCinematicUltimate(opponent);
+                break;
+        }
+    }
+
+    protected void endCinematicUltimate(Fighter opponent) {
+        cinematicActive = false;
+        cinematicPostBeam = false;
+        setState(FighterState.IDLE);
+        if (y < groundY) setState(FighterState.JUMPING);
+
+        // Avversario: se ancora in LAUNCHED, riattiva gravità
+        if (opponent.state == FighterState.LAUNCHED) {
+            opponent.velocityY = 8;
+            opponent.invincibleTimer = 60;
+        }
+    }
+
+    // Getter per GamePanel
+    public boolean isCinematicActive() { return cinematicActive; }
+    public int getCinematicPhase() { return cinematicPhase; }
+    public float getCinematicAlpha() { return cinematicAlpha; }
+    public int getCinematicFrame() { return cinematicFrame; }
+    public boolean isCinematicShowExplosion() { return cinematicShowExplosion; }
+
+    // Override in sottoclassi per sprite specifici
+    public void drawCinematicSprite(Graphics2D g2d) {}
+    public void drawCinematicBeamScene(Graphics2D g2d) {}
+
     protected void drawPlayerPin(Graphics2D g2d, int drawX, int drawY, int drawW) {
         ResourceManager resM = ResourceManager.getInstance();
         BufferedImage pin = (playerID == 1) ? resM.pinP1 : resM.pinP2;
@@ -1320,7 +1565,7 @@ public abstract class Fighter {
         double hpPercent = (double) hp / maxHP;
         Color hpColor = hpPercent > 0.50 ? new Color(60, 210, 60)
                 : hpPercent >= 0.21      ? new Color(230, 140, 20)
-                :                          new Color(210, 40, 40);
+                  :                          new Color(210, 40, 40);
         drawBar(g2d, barsAreaStart, barsAreaEnd, barsStartY,
                 hpBarW, barH, radius, hpPercent,
                 new Color(20, 20, 20), hpColor, "HP", hpColor, resM, labelMargin);
@@ -1354,7 +1599,7 @@ public abstract class Fighter {
         double guardPercent = (double) guardHealth / MAX_GUARD_HEALTH;
         Color guardColor = (state == FighterState.GUARD_CRUSHED) ? new Color(200, 30, 30)
                 : guardPercent < 0.30         ? new Color(220, 100, 30)
-                :                               new Color(175, 175, 185);
+                  :                               new Color(175, 175, 185);
         String guardLabel = (state == FighterState.GUARD_CRUSHED) ? "BROKEN" : "GUARD";
         Color guardLabelColor = (state == FighterState.GUARD_CRUSHED)
                 ? new Color(220, 50, 50)

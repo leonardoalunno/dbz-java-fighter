@@ -33,7 +33,7 @@ public class ResourceManager {
     public BufferedImage pinP1, pinP2;
 
     // --- EFFETTI VISIVI (VFX) ---
-    public BufferedImage kiblastBlue, kiblastYellow, kiblastRed, kiblastGreen, kiblastPurple, kiblastGray;
+    public BufferedImage kiblastBlue, kiblastYellow, kiblastRed, kiblastGreen, kiblastPurple;
     public BufferedImage commonVfx;
 
     // --- AURE ---
@@ -123,7 +123,6 @@ public class ResourceManager {
             kiblastRed = ImageIO.read(getClass().getResourceAsStream("/assets/effects/kiblast_red.png"));
             kiblastGreen = ImageIO.read(getClass().getResourceAsStream("/assets/effects/kiblast_green.png"));
             kiblastPurple = ImageIO.read(getClass().getResourceAsStream("/assets/effects/kiblast_purple.png"));
-            kiblastGray = ImageIO.read(getClass().getResourceAsStream("/assets/effects/kiblast_gray.png"));
 
             commonVfx = ImageIO.read(getClass().getResourceAsStream("/assets/effects/common_vfx.png"));
 

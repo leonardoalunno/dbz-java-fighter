@@ -258,6 +258,10 @@ public class Vegeta extends Fighter {
     @Override
     public void draw(Graphics2D g2d) {
 
+        // Durante la cinematica non disegnare (tranne fase post-beam)
+        if (state == FighterState.CINEMATIC_ULTIMATE) return;
+        if (cinematicActive && !cinematicPostBeam) return;
+
         // Default: stance base
         srcX = 9; srcY = 6; srcW = 43; srcH = 75;
 

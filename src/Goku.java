@@ -374,6 +374,58 @@ public class Goku extends Fighter {
     @Override
     public void draw(Graphics2D g2d) {
 
+        // Durante la cinematica zoom (fasi 0-3), il rendering è gestito da drawCinematicSprite via UIManager
+        // Ma l'HUD si disegna SEMPRE dalle fasi 4+ in poi
+        if (cinematicActive && !cinematicPostBeam) {
+            if (state == FighterState.CINEMATIC_ULTIMATE) {
+                // Fase 0-3: niente personaggio, niente HUD (schermo nero/zoom)
+                return;
+            }
+        }
+
+        // Post-beam: disegna SSJ3 o frame transizione a scala di gioco
+        if (cinematicPostBeam) {
+            // Aura dietro
+            drawAura(g2d);
+
+            if (cinematicPostFrame == 99) {
+                int tW = (int)(107 * scale), tH = (int)(165 * scale);
+                int tX = x + (baseWidth - tW) / 2;
+                int tY = y + baseHeight - tH;
+                int sX1 = tX, sX2 = tX + tW;
+                if (facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
+                g2d.drawImage(spriteSheet, sX1, tY, sX2, tY + tH,
+                        874, 552, 874 + 107, 552 + 165, null);
+            } else if (cinematicPostFrame == -1) {
+                int tW = (int)(107 * scale), tH = (int)(165 * scale);
+                int tX = x + (baseWidth - tW) / 2;
+                int tY = y + baseHeight - tH;
+                int sX1 = tX, sX2 = tX + tW;
+                if (facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
+                g2d.drawImage(spriteSheet, sX1, tY, sX2, tY + tH,
+                        438, 552, 438 + 107, 552 + 165, null);
+            } else {
+                int[] ssj3X = {1784, 1946, 2108, 2270, 2432, 2594, 2756, 812, 650, 488, 974, 1136};
+                int ssj3W = 160, ssj3H = 172, ssj3Y = 5096;
+                int pf = Math.min(cinematicPostFrame, 11);
+                int dW = (int)(ssj3W * scale);
+                int dH = (int)(ssj3H * scale);
+                int dX = x + (baseWidth - dW) / 2;
+                int dY = y + baseHeight - dH;
+                int sX1 = dX, sX2 = dX + dW;
+                if (facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
+                g2d.drawImage(spriteSheet, sX1, dY, sX2, dY + dH,
+                        ssj3X[pf], ssj3Y, ssj3X[pf] + ssj3W, ssj3Y + ssj3H, null);
+            }
+
+            drawShadow(g2d);
+            drawUniversalHUD(g2d, "KAMEHAMEHA"); // HUD visibile durante post-beam!
+            return;
+        }
+
+        // Se l'avversario sta facendo la cinematica, non disegnare
+        if (state == FighterState.CINEMATIC_ULTIMATE) return;
+
         // Default: IDLE stance
         srcX = 438; srcY = 552; srcW = 107; srcH = 165;
 
@@ -639,6 +691,390 @@ public class Goku extends Fighter {
                 srcX = xFrames[frameIndex];
             }
         }
+    }
+
+    // =============================================
+    // CINEMATIC ULTIMATE — SSJ3 Sprite
+    // =============================================
+    @Override
+    public void drawCinematicSprite(Graphics2D g2d) {
+        if (spriteSheet == null) return;
+
+        // 12 frame SSJ3: W=160, H=172, Y=5096
+        int[] ssj3X = {1784, 1946, 2108, 2270, 2432, 2594, 2756, 812, 650, 488, 974, 1136};
+        int ssj3W = 160, ssj3H = 172, ssj3Y = 5096;
+
+        int frame = Math.min(cinematicFrame, 11);
+
+        // Sprite grande centrato sullo schermo + vibrazione
+        double cinematicScale = 3.5;
+        int dW = (int)(ssj3W * cinematicScale);
+        int dH = (int)(ssj3H * cinematicScale);
+        int dX = (GamePanel.SCREEN_WIDTH - dW) / 2 + cinematicVibrateX;
+        int dY = (GamePanel.SCREEN_HEIGHT - dH) / 2 + 50;
+
+        int centerX = dX + dW / 2;
+        int centerY = dY + dH / 2;
+
+        // --- AURA (solo quando cinematicShowAura è true) ---
+        if (auraImage != null && cinematicShowAura) {
+            int[] aX = {3, 357, 4, 368}, aY = {4, 4, 454, 440};
+            int[] aW = {350, 345, 359, 356}, aH = {446, 432, 437, 417};
+            int af = (cinematicTimer / 3) % 4;
+            double auraScale = cinematicScale * 0.7;
+            int aDrawW = (int)(aW[af] * auraScale);
+            int aDrawH = (int)(aH[af] * auraScale);
+            int aDrawX = centerX - aDrawW / 2;
+            // Base dell'aura appena sotto i piedi di Goku
+            int feetY = dY + dH;
+            int aDrawY = feetY - aDrawH + (int)(42 * cinematicScale);
+            g2d.drawImage(auraImage, aDrawX, aDrawY, aDrawX + aDrawW, aDrawY + aDrawH,
+                    aX[af], aY[af], aX[af] + aW[af], aY[af] + aH[af], null);
+        }
+
+        // --- SSJ3 Sprite ---
+        int sX1 = dX, sX2 = dX + dW;
+        if (facingRight) { int t = sX1; sX1 = sX2; sX2 = t; }
+        g2d.drawImage(spriteSheet, sX1, dY, sX2, dY + dH,
+                ssj3X[frame], ssj3Y, ssj3X[frame] + ssj3W, ssj3Y + ssj3H, null);
+
+        // --- ESPLOSIONE davanti a Goku (sprite reale da aura_blue.png) ---
+        if (cinematicShowExplosion && auraImage != null) {
+            double expProgress = cinematicTimer / 20.0;
+            double expScale = cinematicScale * (0.3 + expProgress * 0.7);
+            int expW = (int)(211 * expScale);
+            int expH = (int)(206 * expScale);
+            // Centro dell'esplosione sulle coordinate del corpo (64/160, 96/172 del frame)
+            int expCX = facingRight ? dX + dW - (int)(dW * 64.0 / 160) : dX + (int)(dW * 64.0 / 160);
+            int expCY = dY + (int)(dH * 96.0 / 172);
+            int expX = expCX - expW / 2;
+            int expY = expCY - expH / 2;
+            float expAlpha = Math.min(1f, (float)expProgress);
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, expAlpha));
+            g2d.drawImage(auraImage, expX, expY, expX + expW, expY + expH,
+                    813, 818, 813 + 211, 818 + 206, null);
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+        }
+
+        // --- CARICA KAMEHAMEHA tra le mani (step 7-10, NON step 11) ---
+        int sphereCX = 0, sphereCY = 0;
+        boolean sphereVisible = false;
+        if (cinematicStep >= 7 && cinematicStep <= 10 && cinematicPhase == 1) {
+            sphereVisible = true;
+            float progress;
+            if (cinematicStep == 7) {
+                progress = Math.min(1f, cinematicTimer / 50f);
+            } else {
+                progress = 1f;
+            }
+
+            int baseSize = (int)(30 * cinematicScale * (0.2 + progress * 0.8));
+            double pulse = 1.0 + Math.sin(cinematicTimer * 0.3) * 0.1;
+            int sphereSize = (int)(baseSize * pulse);
+
+            double handFracX = 0, handFracY = 0;
+            switch (cinematicStep) {
+                case 7:  handFracX = 127.0 / 160; handFracY = 98.0 / 172; break;
+                case 8:  handFracX = 121.0 / 160; handFracY = 99.0 / 172; break;
+                case 9:  handFracX = 79.0 / 160;  handFracY = 99.0 / 172; break;
+                case 10: handFracX = 87.0 / 160;  handFracY = 94.0 / 172; break;
+            }
+            if (facingRight) {
+                sphereCX = dX + dW - (int)(dW * handFracX);
+            } else {
+                sphereCX = dX + (int)(dW * handFracX);
+            }
+            sphereCY = dY + (int)(dH * handFracY);
+
+            // Glow esterno
+            int glowSize = (int)(sphereSize * 2.5);
+            java.awt.RadialGradientPaint glowPaint = new java.awt.RadialGradientPaint(
+                    sphereCX, sphereCY, glowSize / 2f,
+                    new float[]{0f, 0.4f, 1f},
+                    new java.awt.Color[]{
+                            new java.awt.Color(100, 180, 255, (int)(120 * progress)),
+                            new java.awt.Color(50, 120, 255, (int)(60 * progress)),
+                            new java.awt.Color(0, 50, 150, 0)
+                    });
+            g2d.setPaint(glowPaint);
+            g2d.fillOval(sphereCX - glowSize / 2, sphereCY - glowSize / 2, glowSize, glowSize);
+
+            // Sfera media
+            java.awt.RadialGradientPaint spherePaint = new java.awt.RadialGradientPaint(
+                    sphereCX, sphereCY, sphereSize / 2f,
+                    new float[]{0f, 0.5f, 1f},
+                    new java.awt.Color[]{
+                            new java.awt.Color(220, 240, 255, (int)(255 * progress)),
+                            new java.awt.Color(80, 160, 255, (int)(230 * progress)),
+                            new java.awt.Color(30, 80, 220, (int)(100 * progress))
+                    });
+            g2d.setPaint(spherePaint);
+            g2d.fillOval(sphereCX - sphereSize / 2, sphereCY - sphereSize / 2, sphereSize, sphereSize);
+
+            // Nucleo bianco
+            int coreSize = (int)(sphereSize * 0.4);
+            java.awt.RadialGradientPaint corePaint = new java.awt.RadialGradientPaint(
+                    sphereCX, sphereCY, coreSize / 2f,
+                    new float[]{0f, 0.6f, 1f},
+                    new java.awt.Color[]{
+                            new java.awt.Color(255, 255, 255, (int)(255 * progress)),
+                            new java.awt.Color(200, 230, 255, (int)(200 * progress)),
+                            new java.awt.Color(100, 180, 255, 0)
+                    });
+            g2d.setPaint(corePaint);
+            g2d.fillOval(sphereCX - coreSize / 2, sphereCY - coreSize / 2, coreSize, coreSize);
+            g2d.setPaint(null);
+            g2d.setColor(java.awt.Color.WHITE);
+        }
+
+        // --- LAUNCH BEAM allo step 11 (head alle mani, body fino all'angolo) ---
+        if (cinematicStep == 11 && cinematicPhase == 1 && spriteSheet != null) {
+            // Mani di Goku SSJ3 frame 11: frac (19/160, 32/172)
+            double handFX = 19.0 / 160, handFY = 32.0 / 172;
+            int handPX, handPY;
+            if (facingRight) {
+                handPX = dX + dW - (int)(dW * handFX);
+            } else {
+                handPX = dX + (int)(dW * handFX);
+            }
+            handPY = dY + (int)(dH * handFY);
+
+            float launchProgress = Math.min(1f, cinematicTimer / 40f);
+            double lScale = cinematicScale * 0.5;
+
+            int lHeadW = (int)(173 * lScale), lHeadH = (int)(143 * lScale);
+            int lBodyW = (int)(127 * lScale), lBodyH = (int)(101 * lScale);
+
+            // Punto di ancoraggio della head: frac (11/173, 110/143)
+            int anchorOffX = (int)(lHeadW * 11.0 / 173);
+            int anchorOffY = (int)(lHeadH * 110.0 / 143);
+
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, launchProgress));
+
+            // Direzione diagonale esatta dello schermo
+            double ratio = 720.0 / 1280.0;
+
+            // Head posizionata con anchor sul punto delle mani
+            int headDrawX, headDrawY;
+            if (facingRight) {
+                headDrawX = handPX - anchorOffX;
+            } else {
+                headDrawX = handPX - (lHeadW - anchorOffX);
+            }
+            headDrawY = handPY - anchorOffY;
+
+            int hx1 = headDrawX, hx2 = headDrawX + lHeadW;
+            if (!facingRight) { int t = hx1; hx1 = hx2; hx2 = t; }
+            g2d.drawImage(spriteSheet, hx1, headDrawY, hx2, headDrawY + lHeadH,
+                    1543, 6254, 1543 + 173, 6254 + 143, null);
+
+            // Body: step con sovrapposizione (triangolo vuoto 23x39 source)
+            int lOverlapX = (int)(23 * lScale);
+            int lOverlapY = (int)(39 * lScale);
+            int bStepX = facingRight ? (lBodyW - lOverlapX) : -(lBodyW - lOverlapX);
+            int bStepY = -(lBodyH - lOverlapY);
+
+            // Punto di partenza body: collegato alla head (con sovrapposizione)
+            int bStartX = facingRight ? headDrawX + lHeadW - lOverlapX : headDrawX - lBodyW + lOverlapX;
+            int bStartY = headDrawY - (lBodyH - lOverlapY);
+
+            int numBodies = (int)(8 * launchProgress);
+            for (int i = 0; i < numBodies; i++) {
+                int bx = bStartX + bStepX * i;
+                int by = bStartY + bStepY * i;
+                int b1 = bx, b2 = bx + lBodyW;
+                if (!facingRight) { b1 = bx + lBodyW; b2 = bx; }
+                g2d.drawImage(spriteSheet, b1, by, b2, by + lBodyH,
+                        1805, 6217, 1805 + 127, 6217 + 101, null);
+            }
+
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+        }
+
+        // --- FULMINI intorno al personaggio ---
+        if (auraImage != null && cinematicShowLightning) {
+            java.util.Random rng = new java.util.Random(cinematicTimer * 7L);
+            int bodyW, bodyCenter, bodyCenterY;
+            if (frame >= 3) {
+                // SSJ3: capelli larghi, centrato
+                bodyW = (int)(dW * 0.7);
+                bodyCenter = centerX;
+                bodyCenterY = centerY;
+            } else {
+                // Pre-SSJ3: coordinate esatte del centro corpo
+                double bodyFracX, bodyFracY;
+                if (frame <= 1) {
+                    bodyFracX = 64.0 / 160; bodyFracY = 104.0 / 172; // step 2, frame 1
+                } else {
+                    bodyFracX = 65.0 / 160; bodyFracY = 92.0 / 172;  // step 3, frame 2
+                }
+                bodyW = (int)(dW * 0.5);
+                if (facingRight) {
+                    bodyCenter = dX + dW - (int)(dW * bodyFracX);
+                } else {
+                    bodyCenter = dX + (int)(dW * bodyFracX);
+                }
+                bodyCenterY = dY + (int)(dH * bodyFracY);
+            }
+            int bodyLeft = bodyCenter - bodyW / 2;
+            int minY = (frame >= 3) ? dY - (int)(dH * 0.05) : bodyCenterY - (int)(dH * 0.45);
+            int maxY = (frame >= 3) ? dY + (int)(dH * 0.65) : bodyCenterY + (int)(dH * 0.25);
+            int numBolts = (frame >= 3) ? 2 + rng.nextInt(2) : 2;
+            for (int i = 0; i < numBolts; i++) {
+                int boltX = bodyLeft + rng.nextInt(bodyW);
+                int boltY = minY + rng.nextInt(maxY - minY);
+                double boltScale = cinematicScale * (0.20 + rng.nextDouble() * 0.20);
+                if (rng.nextBoolean()) {
+                    int bW = (int)(66 * boltScale), bH = (int)(107 * boltScale);
+                    g2d.drawImage(auraImage, boltX, boltY, boltX + bW, boltY + bH,
+                            129, 895, 129 + 66, 895 + 107, null);
+                } else {
+                    int bW = (int)(72 * boltScale), bH = (int)(79 * boltScale);
+                    g2d.drawImage(auraImage, boltX, boltY, boltX + bW, boltY + bH,
+                            199, 894, 199 + 72, 894 + 79, null);
+                }
+            }
+        }
+
+        // --- FULMINI attorno alla sfera kamehameha (1 solo, piccolo, vicino) ---
+        if (auraImage != null && sphereVisible && cinematicTimer % 3 == 0) {
+            java.util.Random rng2 = new java.util.Random(cinematicTimer * 13L);
+            int boltX = sphereCX - (int)(10 * cinematicScale) + rng2.nextInt((int)(20 * cinematicScale));
+            int boltY = sphereCY - (int)(10 * cinematicScale) + rng2.nextInt((int)(20 * cinematicScale));
+            double boltScale = cinematicScale * (0.10 + rng2.nextDouble() * 0.10);
+            int bW = (int)(66 * boltScale), bH = (int)(107 * boltScale);
+            g2d.drawImage(auraImage, boltX, boltY, boltX + bW, boltY + bH,
+                    129, 895, 129 + 66, 895 + 107, null);
+        }
+    }
+
+    // =============================================
+    // CINEMATIC BEAM SCENE — Kamehameha diagonale
+    // =============================================
+    @Override
+    public void drawCinematicBeamScene(Graphics2D g2d) {
+        if (spriteSheet == null) return;
+
+        int W = GamePanel.SCREEN_WIDTH;
+        int H = GamePanel.SCREEN_HEIGHT;
+
+        double beamScale = 2.0;
+        int headW = (int)(173 * beamScale), headH = (int)(143 * beamScale);
+        int bodyW = (int)(127 * beamScale), bodyH = (int)(101 * beamScale);
+
+        // Sovrapposizione body (triangolo vuoto 23x39 source)
+        int overlapX = (int)(23 * beamScale);
+        int overlapY = (int)(39 * beamScale);
+        int bStepX = bodyW - overlapX;
+        int bStepY = bodyH - overlapY;
+
+        // Angoli di riferimento: il CENTRO del beam passa esattamente per i corners
+        // facingRight: basso-sx (0,H) → alto-dx (W,0)
+        // !facingRight: basso-dx (W,H) → alto-sx (0,0)
+        int cornerStartX = facingRight ? 0 : W;
+        int cornerStartY = H;
+        int cornerEndX = facingRight ? W : 0;
+        int cornerEndY = 0;
+
+        // Numero totale di segmenti per coprire la diagonale
+        int totalSegs = 18;
+
+        // === SUB-FASE 1 (tick 0-60): beam attraversa lo schermo (rallentato) ===
+        if (cinematicTimer <= 60) {
+            float progress = cinematicTimer / 60f;
+            int numSegs = (int)(totalSegs * progress);
+
+            for (int i = 0; i < numSegs; i++) {
+                float frac = (float)i / totalSegs;
+                int cx = cornerStartX + (int)((cornerEndX - cornerStartX) * frac);
+                int cy = cornerStartY + (int)((cornerEndY - cornerStartY) * frac);
+                int bx = cx - bodyW / 2;
+                int by = cy - bodyH / 2;
+                int b1 = bx, b2 = bx + bodyW;
+                if (!facingRight) { int t = b1; b1 = b2; b2 = t; }
+                g2d.drawImage(spriteSheet, b1, by, b2, by + bodyH,
+                        1805, 6217, 1805 + 127, 6217 + 101, null);
+            }
+
+            // Head alla punta — flippata H e V, collegata all'ultimo body
+            float headFrac = (float)numSegs / totalSegs;
+            int hcx = cornerStartX + (int)((cornerEndX - cornerStartX) * headFrac);
+            int hcy = cornerStartY + (int)((cornerEndY - cornerStartY) * headFrac);
+            int hx = hcx - headW / 2;
+            int hy = hcy - headH / 2;
+            // Flip H+V
+            int h1 = hx, h2 = hx + headW;
+            int hv1 = hy, hv2 = hy + headH;
+            if (facingRight) { int t = h1; h1 = h2; h2 = t; }
+            int tv = hv1; hv1 = hv2; hv2 = tv;
+            g2d.drawImage(spriteSheet, h1, hv1, h2, hv2,
+                    1543, 6254, 1543 + 173, 6254 + 143, null);
+        }
+
+        // === SUB-FASE 2 (tick 60-90): schermo nero + avversario ===
+        // === SUB-FASE 3 (tick 90-120): beam sbuca e oltrepassa avversario ===
+        if (cinematicTimer > 60) {
+            double oppScale = 2.5;
+            int oppW = (int)(117 * oppScale);
+            int oppH = (int)(130 * oppScale);
+            int oppX = (W - oppW) / 2;
+            int oppY = (H - oppH) / 2 - 30;
+
+            // Beam arriva dall'angolo (dopo tick 90)
+            if (cinematicTimer > 90) {
+                float beamProg = Math.min(1f, (cinematicTimer - 90) / 25f);
+                int numSegs = (int)(totalSegs * beamProg);
+
+                for (int i = 0; i < numSegs; i++) {
+                    float frac = (float)i / totalSegs;
+                    int cx = cornerStartX + (int)((cornerEndX - cornerStartX) * frac);
+                    int cy = cornerStartY + (int)((cornerEndY - cornerStartY) * frac);
+                    int bx = cx - bodyW / 2;
+                    int by = cy - bodyH / 2;
+                    int b1 = bx, b2 = bx + bodyW;
+                    if (!facingRight) { int t = b1; b1 = b2; b2 = t; }
+                    g2d.drawImage(spriteSheet, b1, by, b2, by + bodyH,
+                            1805, 6217, 1805 + 127, 6217 + 101, null);
+                }
+
+                // Head alla punta
+                float headFrac = (float)numSegs / totalSegs;
+                int hcx = cornerStartX + (int)((cornerEndX - cornerStartX) * headFrac);
+                int hcy = cornerStartY + (int)((cornerEndY - cornerStartY) * headFrac);
+                int hx = hcx - headW / 2;
+                int hy = hcy - headH / 2;
+                int h1 = hx, h2 = hx + headW;
+                int hv1 = hy, hv2 = hy + headH;
+                if (facingRight) { int t = h1; h1 = h2; h2 = t; }
+                int tv = hv1; hv1 = hv2; hv2 = tv;
+                g2d.drawImage(spriteSheet, h1, hv1, h2, hv2,
+                        1543, 6254, 1543 + 173, 6254 + 143, null);
+
+                // Flash quando colpisce
+                if (beamProg >= 0.5f && (cinematicTimer / 3) % 2 == 0) {
+                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.5f));
+                    g2d.setColor(java.awt.Color.WHITE);
+                    g2d.fillRect(0, 0, W, H);
+                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+                }
+            }
+
+            // Avversario SOPRA il beam
+            float oppAlpha = Math.min(1f, (cinematicTimer - 60) / 10f);
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, oppAlpha));
+            int oS1 = oppX, oS2 = oppX + oppW;
+            if (facingRight) { int t = oS1; oS1 = oS2; oS2 = t; }
+            g2d.drawImage(spriteSheet, oS1, oppY, oS2, oppY + oppH,
+                    359, 7657, 359 + 117, 7657 + 130, null);
+            g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+        }
+
+        // Glow azzurro
+        float glowAlpha = 0.06f + 0.04f * (float)Math.sin(cinematicTimer * 0.4);
+        g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, glowAlpha));
+        g2d.setColor(new java.awt.Color(100, 180, 255));
+        g2d.fillRect(0, 0, W, H);
+        g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
     }
 
     // =============================================

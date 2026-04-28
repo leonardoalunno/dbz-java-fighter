@@ -304,14 +304,25 @@ public class UIManager {
 
         // --- DISEGNO PERSONAGGI (Gestione Z-Index per chi attacca) ---
         if (gp.player1 != null && gp.player2 != null) {
-            if (gp.player2.isAttacking() && !gp.player1.isAttacking()) {
-                gp.player1.draw(g2d);
-                gp.player2.draw(g2d);
-            } else {
-                gp.player2.draw(g2d);
-                gp.player1.draw(g2d);
+            // Durante la cinematica zoom (fasi 0-3) non disegnare i personaggi normalmente
+            Fighter cinPlayer = null;
+            if (gp.player1.isCinematicActive()) cinPlayer = gp.player1;
+            if (gp.player2.isCinematicActive()) cinPlayer = gp.player2;
+            boolean hideChars = cinPlayer != null && cinPlayer.getCinematicPhase() < 4;
+
+            if (!hideChars) {
+                if (gp.player2.isAttacking() && !gp.player1.isAttacking()) {
+                    gp.player1.draw(g2d);
+                    gp.player2.draw(g2d);
+                } else {
+                    gp.player2.draw(g2d);
+                    gp.player1.draw(g2d);
+                }
             }
         }
+
+        // --- CINEMATIC ULTIMATE OVERLAY ---
+        drawCinematicOverlay(g2d);
 
         // --- STATUS ICONS (Ready, Fight, KO) ---
         BufferedImage currentStatusIcon = null; int targetH = 120;
@@ -340,6 +351,66 @@ public class UIManager {
             g2d.setColor(Color.GRAY);
             setCustomFont(g2d, 35f);
             g2d.drawString("Press BLOCK to return to Menu", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("Press BLOCK to return to Menu")) / 2, 600);
+        }
+    }
+
+    private void drawCinematicOverlay(Graphics2D g2d) {
+        // Trova chi ha la cinematica attiva
+        Fighter attacker = null;
+        if (gp.player1 != null && gp.player1.isCinematicActive()) attacker = gp.player1;
+        if (gp.player2 != null && gp.player2.isCinematicActive()) attacker = gp.player2;
+        if (attacker == null) return;
+
+        int phase = attacker.getCinematicPhase();
+        float alpha = attacker.getCinematicAlpha();
+        int frame = attacker.getCinematicFrame();
+        int W = GamePanel.SCREEN_WIDTH;
+        int H = GamePanel.SCREEN_HEIGHT;
+
+        switch (phase) {
+            case 0: // DARK FADE IN
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * 0.85f));
+                g2d.setColor(Color.BLACK);
+                g2d.fillRect(0, 0, W, H);
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1f));
+                break;
+
+            case 1: // SSJ3 TRANSFORMATION
+                // Sfondo nero
+                g2d.setColor(Color.BLACK);
+                g2d.fillRect(0, 0, W, H);
+                // Disegna sprite SSJ3 (lo fa Goku.drawCinematicSprite)
+                attacker.drawCinematicSprite(g2d);
+                break;
+
+            case 2: // BEAM — Goku spara kamehameha diagonale verso l'avversario
+                g2d.setColor(Color.BLACK);
+                g2d.fillRect(0, 0, W, H);
+
+                // Disegna la scena del beam (delegata a Goku)
+                attacker.drawCinematicBeamScene(g2d);
+
+                // Hit counter
+                if (attacker.cinematicHitsDealt > 0) {
+                    setCustomFont(g2d, 60f);
+                    g2d.setColor(Color.YELLOW);
+                    String hitText = attacker.cinematicHitsDealt + " HITS!";
+                    g2d.drawString(hitText, W / 2 - g2d.getFontMetrics().stringWidth(hitText) / 2, 80);
+                }
+                break;
+
+            case 3: // WHITE FLASH
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, alpha)));
+                g2d.setColor(Color.WHITE);
+                g2d.fillRect(0, 0, W, H);
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1f));
+                break;
+
+            case 4: // SSJ3 ON BATTLEFIELD — niente overlay, personaggi disegnati normalmente
+                break;
+
+            case 5: // RETURN — niente overlay
+                break;
         }
     }
 
