@@ -48,6 +48,5 @@ public enum FighterState {
     // STATI FINALI — Fine match
     // =============================================
     KO,             // Sconfitto
-    WINNER,         // Vincitore
-    CINEMATIC_ULTIMATE // Cinematica Ultimate in corso
+    WINNER          // Vincitore
 }
