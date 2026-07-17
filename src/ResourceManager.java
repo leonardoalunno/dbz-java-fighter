@@ -1,4 +1,4 @@
-import java.awt.Font;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
@@ -10,6 +10,9 @@ public class ResourceManager {
     // --- FONT ---
     public Font saiyanFont;
     public Font bangersFont;
+
+    // --- ICONA ---
+    public Image appIcon;
 
     // --- SPRITESHEETS ---
     public BufferedImage gokuSpriteSheet;
@@ -72,6 +75,9 @@ public class ResourceManager {
             } else {
                 System.out.println("Attenzione: File Bangers.ttf non trovato nel classpath!");
             }
+
+            // 0C. CARICAMENTO ICONA
+            appIcon = ImageIO.read(getClass().getResourceAsStream("/assets/icon.png"));
 
             // 1. CARICAMENTO SPRITESHEETS
             gokuSpriteSheet = ImageIO.read(getClass().getResourceAsStream("/assets/characters/spritesheets/goku_spritesheet.png"));

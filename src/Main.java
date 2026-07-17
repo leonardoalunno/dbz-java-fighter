@@ -1,5 +1,6 @@
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import java.awt.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -25,6 +26,18 @@ public class Main {
 
             // Centriamo la finestra al centro dello schermo del tuo Mac
             window.setLocationRelativeTo(null);
+
+            Image icon = ResourceManager.getInstance().appIcon;
+
+            window.setIconImage(icon);   // finestra (Windows/Linux)
+
+            // Dock macOS (Java 9+)
+            if (Taskbar.isTaskbarSupported()) {
+                Taskbar taskbar = Taskbar.getTaskbar();
+                if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                    taskbar.setIconImage(icon);
+                }
+            }
 
             // Finalmente, rendiamo tutto visibile!
             window.setVisible(true);
