@@ -121,6 +121,25 @@ public class UIManager {
         g2d.setColor(Color.YELLOW); setCustomFont(g2d, 70f);
         g2d.drawString("CHARACTER SELECT", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("CHARACTER SELECT")) / 2, 100);
 
+        BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta};
+
+        /* --- ROSTER ESTESO — deve corrispondere all'ordine di gp.charNames ---
+         * BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta,
+         *                          rm.iconFutureTrunks, rm.iconBroly, rm.iconBeerus};
+         * -------------------------------------------------------------------- */
+
+        int n = gp.charNames.length;
+        int size = 110, spacing = 160;
+        int startX = (GamePanel.SCREEN_WIDTH - (spacing * (n - 1) + size)) / 2, startY = 300;
+
+        for(int i = 0; i < n; i++) {
+            int x = startX + (i * spacing);
+            if (icons[i] != null) g2d.drawImage(icons[i], x, startY, size, size, null);
+            g2d.setColor(Color.WHITE); setCustomFont(g2d, 28f);
+            g2d.drawString(gp.charNames[i], x + (size / 2) - (g2d.getFontMetrics().stringWidth(gp.charNames[i]) / 2), startY + size + 45);
+        }
+
+        /* Per estendere a 5 personaggi
         BufferedImage[] icons = {rm.iconGoku, rm.iconVegeta, rm.iconFutureTrunks, rm.iconBroly, rm.iconBeerus};
         int size = 110, spacing = 160, startX = (GamePanel.SCREEN_WIDTH - (spacing * 4 + size)) / 2, startY = 300;
 
@@ -130,6 +149,7 @@ public class UIManager {
             g2d.setColor(Color.WHITE); setCustomFont(g2d, 28f);
             g2d.drawString(gp.charNames[i], x + (size / 2) - (g2d.getFontMetrics().stringWidth(gp.charNames[i]) / 2), startY + size + 45);
         }
+         */
 
         g2d.setStroke(new BasicStroke(5));
 
@@ -304,7 +324,13 @@ public class UIManager {
 
         // --- DISEGNO PERSONAGGI (Gestione Z-Index per chi attacca) ---
         if (gp.player1 != null && gp.player2 != null) {
-            if (gp.player2.isAttacking() && !gp.player1.isAttacking()) {
+            boolean intro = (gp.battlePhase == 0 || gp.battlePhase == 1);
+
+            if (intro) {
+                double progress = Math.min(1.0, (double)gp.transformTimer / GamePanel.TRANSFORM_DURATION);
+                gp.player1.drawIntroTransform(g2d, progress);
+                gp.player2.drawIntroTransform(g2d, progress);
+            } else if (gp.player2.isAttacking() && !gp.player1.isAttacking()) {
                 gp.player1.draw(g2d);
                 gp.player2.draw(g2d);
             } else {

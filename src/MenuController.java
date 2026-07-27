@@ -2,6 +2,11 @@ public class MenuController {
 
     private GamePanel gp;
 
+
+    // --- Edge detection: stato dei tasti nel frame precedente ---
+    private boolean prevP1Left, prevP1Right, prevP1Confirm, prevP1Cancel;
+    private boolean prevP2Left, prevP2Right, prevP2Confirm, prevP2Cancel;
+
     public MenuController(GamePanel gp) {
         this.gp = gp;
     }
@@ -14,6 +19,19 @@ public class MenuController {
             case 6:
             case 7: updateCommandsOrCredits(); break;
         }
+        updatePrevInputs();   // sempre in fondo, dopo lo switch
+    }
+
+    private void updatePrevInputs() {
+        prevP1Left    = gp.keyH.p1_left;
+        prevP1Right   = gp.keyH.p1_right;
+        prevP1Confirm = gp.keyH.p1_light;
+        prevP1Cancel  = gp.keyH.p1_block;
+
+        prevP2Left    = gp.keyH.p2_left;
+        prevP2Right   = gp.keyH.p2_right;
+        prevP2Confirm = gp.keyH.p2_light;
+        prevP2Cancel  = gp.keyH.p2_block;
     }
 
     private void updateMainMenu() {
@@ -37,43 +55,47 @@ public class MenuController {
     }
 
     private void updateCharacterMenu() {
-        if (!gp.p1Ready && !gp.p2Ready && gp.menuCooldown == 0) {
-            if (gp.keyH.p1_block || gp.keyH.p2_block) {
+        int n = gp.charNames.length;
+
+        // --- Indietro al menu principale (solo se nessuno ha confermato) ---
+        if (!gp.p1Ready && !gp.p2Ready) {
+            boolean cancel = (gp.keyH.p1_block && !prevP1Cancel)
+                    || (gp.keyH.p2_block && !prevP2Cancel);
+            if (cancel) {
                 gp.gameState = 1;
                 gp.menuCooldown = gp.COOLDOWN_TIME;
                 return;
             }
         }
 
-        // P1
-        if (!gp.p1Ready && gp.menuCooldown == 0) {
-            if (gp.keyH.p1_right) { gp.p1Cursor = (gp.p1Cursor + 1) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p1_left) { gp.p1Cursor = (gp.p1Cursor + 4) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p1_light) { gp.p1Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
-        }
-        if (gp.p1Ready && gp.keyH.p1_block && gp.menuCooldown == 0) {
-            gp.p1Ready = false; gp.menuCooldown = gp.COOLDOWN_TIME;
-        }
-
-        // P2
-        if (!gp.p2Ready && gp.menuCooldown == 0) {
-            if (gp.keyH.p2_right) { gp.p2Cursor = (gp.p2Cursor + 1) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p2_left) { gp.p2Cursor = (gp.p2Cursor + 4) % 5; gp.menuCooldown = gp.COOLDOWN_TIME; }
-            if (gp.keyH.p2_light) { gp.p2Ready = true; gp.menuCooldown = gp.COOLDOWN_TIME; }
-        }
-        if (gp.p2Ready && gp.keyH.p2_block && gp.menuCooldown == 0) {
-            gp.p2Ready = false; gp.menuCooldown = gp.COOLDOWN_TIME;
+        // --- P1 ---
+        if (!gp.p1Ready) {
+            if (gp.keyH.p1_right && !prevP1Right)   gp.p1Cursor = (gp.p1Cursor + 1) % n;
+            if (gp.keyH.p1_left  && !prevP1Left)    gp.p1Cursor = (gp.p1Cursor + n - 1) % n;
+            if (gp.keyH.p1_light && !prevP1Confirm) gp.p1Ready = true;
+        } else {
+            if (gp.keyH.p1_block && !prevP1Cancel)  gp.p1Ready = false;
         }
 
-        // Se entrambi sono pronti, facciamo una breve pausa prima di cambiare scena!
+        // --- P2 ---
+        if (!gp.p2Ready) {
+            if (gp.keyH.p2_right && !prevP2Right)   gp.p2Cursor = (gp.p2Cursor + 1) % n;
+            if (gp.keyH.p2_left  && !prevP2Left)    gp.p2Cursor = (gp.p2Cursor + n - 1) % n;
+            if (gp.keyH.p2_light && !prevP2Confirm) gp.p2Ready = true;
+        } else {
+            if (gp.keyH.p2_block && !prevP2Cancel)  gp.p2Ready = false;
+        }
+
+        // --- Entrambi pronti → Stage Select ---
         if (gp.p1Ready && gp.p2Ready) {
             gp.stateTimer++;
-            if (gp.stateTimer > 45) { // 45 frame = 0.75 secondi di attesa (abbastanza per leggere)
-                gp.gameState = 3;     // Passa allo Stage Select
-                gp.stateTimer = 0;    // Resetta il timer per la prossima schermata
+            if (gp.stateTimer > 45) {
+                gp.gameState = 3;
+                gp.stateTimer = 0;
+                gp.menuCooldown = gp.COOLDOWN_TIME;
             }
         } else {
-            gp.stateTimer = 0; // Se qualcuno annulla la selezione, il timer si azzera
+            gp.stateTimer = 0;
         }
     }
 

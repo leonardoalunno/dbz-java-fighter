@@ -567,6 +567,28 @@ public class Goku extends Fighter {
     }
 
     // =============================================
+    // INTRO TRANSFORM — 6 frame base->SSJ (riga Y=386)
+    // =============================================
+    @Override
+    public void drawIntroTransform(Graphics2D g2d, double progress) {
+        final int FRAMES = 6;
+        int frame = (int)(progress * FRAMES);
+        if (frame >= FRAMES) frame = FRAMES - 1;
+
+        srcW = 94; srcH = 162; srcY = 386;
+        int[] tX = {2, 98, 194, 290, 386, 482};
+        srcX = tX[frame];
+
+        // Aura visiva solo sull'ultimo frame — estetica pura, nessun bonus di gameplay
+        introAuraOverride = (frame == FRAMES - 1);
+        drawFighterSprite(g2d);
+        introAuraOverride = false;
+
+        for (VisualEffect eff : activeEffects) eff.draw(g2d);
+        drawPlayerPin(g2d, x + shiftX, drawY, drawW);
+    }
+
+    // =============================================
     // HELPER — sprite della combo in base alla route
     // =============================================
     private void drawComboSprite(Graphics2D g2d) {

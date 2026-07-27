@@ -109,6 +109,7 @@ public abstract class Fighter {
     // AURA SYSTEM
     // =============================================
     protected int    auraFrame      = 0;
+    protected boolean introAuraOverride = false; // intro-transform: disegna aura senza AURA_ACTIVE (solo estetica)
     protected int    auraAnimTimer  = 0;
     protected int    auraChargeTimer = 0;
     protected final int AURA_CHARGE_DURATION = 30;
@@ -1216,8 +1217,17 @@ public abstract class Fighter {
         }
     }
 
+    // =============================================
+    // INTRO TRANSFORM — animazione estetica di apertura battaglia.
+    // progress: 0.0 (inizio) -> 1.0 (fine). Default: sprite normale.
+    // Le sottoclassi fanno override impostando i src* per frame.
+    // =============================================
+    public void drawIntroTransform(Graphics2D g2d, double progress) {
+        draw(g2d);
+    }
+
     protected void drawAura(Graphics2D g2d) {
-        if ((state == FighterState.CHARGING_KI || auraBoostActive) && auraImage != null) {
+        if ((state == FighterState.CHARGING_KI || auraBoostActive || introAuraOverride) && auraImage != null) {
             int[] aX = {3, 357, 4, 368}, aY = {4, 4, 454, 440};
             int[] aW = {350, 345, 359, 356}, aH = {446, 432, 437, 417};
             double auraDrawScale = 0.65 * scale; // ingrandita da 0.45 a 0.65
@@ -1320,7 +1330,7 @@ public abstract class Fighter {
         double hpPercent = (double) hp / maxHP;
         Color hpColor = hpPercent > 0.50 ? new Color(60, 210, 60)
                 : hpPercent >= 0.21      ? new Color(230, 140, 20)
-                :                          new Color(210, 40, 40);
+                  :                          new Color(210, 40, 40);
         drawBar(g2d, barsAreaStart, barsAreaEnd, barsStartY,
                 hpBarW, barH, radius, hpPercent,
                 new Color(20, 20, 20), hpColor, "HP", hpColor, resM, labelMargin);
@@ -1354,7 +1364,7 @@ public abstract class Fighter {
         double guardPercent = (double) guardHealth / MAX_GUARD_HEALTH;
         Color guardColor = (state == FighterState.GUARD_CRUSHED) ? new Color(200, 30, 30)
                 : guardPercent < 0.30         ? new Color(220, 100, 30)
-                :                               new Color(175, 175, 185);
+                  :                               new Color(175, 175, 185);
         String guardLabel = (state == FighterState.GUARD_CRUSHED) ? "BROKEN" : "GUARD";
         Color guardLabelColor = (state == FighterState.GUARD_CRUSHED)
                 ? new Color(220, 50, 50)

@@ -26,9 +26,25 @@ public class GamePanel extends JPanel implements Runnable {
     public int loadSpriteFrame = 1;
     public int battlePhase = 0;
 
-    public int p1Cursor = 0, p2Cursor = 4;
+    // --- Intro transformation (estetica pura, nessuno stato FSM) ---
+    public int transformTimer = 0;
+    public static final int TRANSFORM_DURATION = 120; // 2s a 60fps, sincronizzata per entrambi
+
+    public int p1Cursor = 0, p2Cursor = 1; // = 4;
     public boolean p1Ready = false, p2Ready = false;
-    public String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Beerus"};
+    public String[] charNames = {"Goku", "Vegeta"};
+
+    /* ---------------------------------------------------------------
+     * ROSTER ESTESO — sviluppo futuro
+     * Per riattivare i 5 personaggi è sufficiente sostituire l'array
+     * qui sopra con quello seguente e aggiornare createFighter() e
+     * l'array icons in UIManager.drawCharacterMenu().
+     * Gli spritesheet, le icone e i portrait sono già caricati in
+     * ResourceManager. Il layout della select e lo scorrimento dei
+     * cursori si adattano automaticamente alla lunghezza dell'array.
+     *
+     * public String[] charNames = {"Goku", "Vegeta", "Trunks", "Broly", "Beerus"};
+     * --------------------------------------------------------------- */
 
     public int stageCursor = 0;
 
@@ -118,8 +134,9 @@ public class GamePanel extends JPanel implements Runnable {
             case 5: // BATTLE
                 if (battlePhase == 0 || battlePhase == 1) {
                     stateTimer++;
+                    transformTimer++; // avanza per tutta l'intro (fasi 0 e 1)
                     if (battlePhase == 0 && stateTimer > 60) { battlePhase = 1; stateTimer = 0; }
-                    if (battlePhase == 1 && stateTimer > 40) { battlePhase = 2; stateTimer = 0; }
+                    if (battlePhase == 1 && stateTimer > 60) { battlePhase = 2; stateTimer = 0; }
                 }
 
                 if (battlePhase >= 2 && player1 != null && player2 != null) {
@@ -152,6 +169,7 @@ public class GamePanel extends JPanel implements Runnable {
                         menuCooldown = COOLDOWN_TIME;
                         p1Ready = false; p2Ready = false;
                         player1 = null; player2 = null;
+                        transformTimer = 0;
                     }
                 }
                 break;
@@ -160,11 +178,15 @@ public class GamePanel extends JPanel implements Runnable {
 
     public Fighter createFighter(int cursorIndex, int x, int y, int playerID) {
         switch (cursorIndex) {
-            case 0: return new Goku(x, y, playerID);
-            case 1: return new Vegeta(x, y, playerID);
-            case 2: return new Goku(x, y, playerID); // return new FutureTrunks(x, y, playerID);
-            case 3: return new Goku(x, y, playerID); // return new Broly(x, y, playerID);
-            case 4: return new Goku(x, y, playerID); // return new Beerus(x, y, playerID);
+            case 0:  return new Goku(x, y, playerID);
+            case 1:  return new Vegeta(x, y, playerID);
+
+            /* --- ROSTER ESTESO — richiede le rispettive sottoclassi di Fighter ---
+             * case 2: return new FutureTrunks(x, y, playerID);
+             * case 3: return new Broly(x, y, playerID);
+             * case 4: return new Beerus(x, y, playerID);
+             * ------------------------------------------------------------------ */
+
             default: return new Goku(x, y, playerID);
         }
     }

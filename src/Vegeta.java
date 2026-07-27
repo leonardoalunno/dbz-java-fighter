@@ -15,20 +15,20 @@ public class Vegeta extends Fighter {
         this.facingRight  = (playerID == 1);
         this.portraitSrcY = 300;
 
-        // Scala e dimensioni
-        this.scale      = 2.0;
-        this.baseWidth  = (int)(48 * scale);
-        this.baseHeight = (int)(86 * scale);
+        // Scala e dimensioni — allineate a Goku (scale 1.0)
+        this.scale      = 1.0;
+        this.baseWidth  = (int)(72 * scale);
+        this.baseHeight = (int)(163 * scale);
 
         // Universal floor
         int universalFloorY = y + 111;
         this.y       = universalFloorY - this.baseHeight;
         this.groundY = this.y;
 
-        // Fisica
+        // Fisica — identica a Goku
         this.speed        = (int)(4 * scale);
-        this.jumpStrength = -12 * scale;
-        this.gravity      = 0.5 * scale;
+        this.jumpStrength = -16 * scale;
+        this.gravity      = 0.35 * scale;
 
         // Ki
         this.ki            = MAX_KI;
