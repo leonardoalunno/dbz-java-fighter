@@ -384,6 +384,31 @@ public class Vegeta extends Fighter {
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
     }
 
+
+    // =============================================
+    // INTRO TRANSFORM — 7 frame (da X=378 in poi), base->SSJ (riga Y=7970)
+    // Nota: l'ultimo frame (SSJ) sta a X=2, all'inizio della riga
+    // =============================================
+    @Override
+    public void drawIntroTransform(Graphics2D g2d, double progress) {
+        final int FRAMES = 7;
+        int frame = (int)(progress * FRAMES);
+        if (frame >= FRAMES) frame = FRAMES - 1;
+
+        srcW = 92; srcH = 143; srcY = 7970;
+        int[] tX = {378, 472, 566, 660, 754, 848, 2};
+        srcX = tX[frame];
+
+        // Aura visiva solo sull'ultimo frame — estetica pura, nessun bonus
+        introAuraOverride = (frame == FRAMES - 1);
+        drawFighterSprite(g2d);
+        introAuraOverride = false;
+
+        for (VisualEffect eff : activeEffects) eff.draw(g2d);
+        drawPlayerPin(g2d, x + shiftX, drawY, drawW);
+    }
+
+
     // =============================================
     // HELPER — sprite della combo in base alla route
     // =============================================
