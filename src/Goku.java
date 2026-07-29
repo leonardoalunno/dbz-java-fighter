@@ -513,8 +513,8 @@ public class Goku extends Fighter {
 
             case JUMPING -> {
                 srcY = 1412; srcH = 165; srcW = 106;
-                int[] jumpX = {110, 218, 326, 434, 542, 650, 758};
-                srcX = jumpX[Math.min(spriteNum - 1, 6)];
+                int[] jumpX = {110, 218, 326, 434, 542, 650};
+                srcX = jumpX[Math.min(spriteNum - 1, 5)];
             }
 
             case FLYING_IDLE -> {
