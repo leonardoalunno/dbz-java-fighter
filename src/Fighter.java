@@ -207,6 +207,10 @@ public abstract class Fighter {
     protected int srcX, srcY, srcW, srcH;
     protected int drawW, drawH, drawY, shiftX;
     protected int spriteCounter = 0, spriteNum = 1;
+    private FighterState prevStateForSound = FighterState.IDLE;
+    private int prevWalkFrameForSound = -1;
+    private boolean wasFlyingLastFrame = false;
+    private boolean wasAirborneLastFrame = false;
     protected int customOffsetX = 0;
 
     // =============================================
@@ -307,6 +311,7 @@ public abstract class Fighter {
     // =============================================
     protected void startTeleport(int offX, int offY, boolean faceRight) {
         flyingBeforeAction = isFlying();
+        SoundManager.getInstance().play("teleport");
         setState(FighterState.TELEPORTING);
         teleportPhase   = 1;
         teleportFrame   = 6;
@@ -335,6 +340,7 @@ public abstract class Fighter {
         if (state == FighterState.TELEPORTING)  return;
 
         if (isBlocking() && !isUnblockable) {
+            SoundManager.getInstance().play("block");
 
             // --- GUARD BREAKER: crush istantaneo, 0 danno HP ---
             if (isGuardBreaker) {
@@ -401,6 +407,7 @@ public abstract class Fighter {
             boolean isHeavyHit = isLauncher || isSpikeDown || isGuardBreaker;
 
             if (isHeavyHit) {
+                SoundManager.getInstance().play("hit_heavy");
                 hitCooldown      = HIT_COOLDOWN_FRAMES;
                 hitTimer         = 0;
                 wallBounced      = false;
@@ -456,6 +463,7 @@ public abstract class Fighter {
             else {
                 // Nessun hitCooldown, nessun knockback, nessun cambio di stato
                 lightHitFlash = LIGHT_HIT_FLASH_DURATION;
+                SoundManager.getInstance().play("hit_light");
             }
         }
     }
@@ -477,6 +485,8 @@ public abstract class Fighter {
     // UPDATE — motore principale
     // =============================================
     public void update(KeyHandler keyH, Fighter opponent) {
+
+        updateTransitionSounds();
 
         // Aggiornamento effetti visivi
         for (int i = 0; i < activeEffects.size(); i++) {
@@ -536,6 +546,36 @@ public abstract class Fighter {
                 if (endFrame < 7) endFrame++;
             }
             return;
+        }
+
+        // --- FREEZE durante l'ultimate avversaria ---
+        // Se l'avversario sta eseguendo un'ultimate (carica o beam), questo
+        // personaggio si mette in guardia (a terra o in aria) e resta sospeso
+        // finche' non viene eventualmente colpito dall'onda.
+        if (opponent != null &&
+                (opponent.state == FighterState.ULTIMATE_STARTUP ||
+                        opponent.state == FighterState.ULTIMATE_ACTIVE)) {
+
+            // Se NON e' gia' in uno stato di danno (colpito dall'onda), forza la posa di guardia
+            if (state != FighterState.HIT_STUN
+                    && state != FighterState.TUMBLING
+                    && state != FighterState.LAUNCHED
+                    && state != FighterState.KO) {
+                // A terra -> BLOCKING, in aria -> BLOCKING_AIR. Sospeso, nessuna gravita'.
+                FighterState guardState = (y >= groundY)
+                        ? FighterState.BLOCKING : FighterState.BLOCKING_AIR;
+                // setState solo alla prima entrata (evita reset animazione ogni frame)
+                if (state != guardState) setState(guardState);
+                // Tieni la guardia sull'ultimo frame (posa completa, non l'apertura)
+                blockActiveTimer = 30;
+            }
+            // Aggiorna comunque proiettili/effetti gia' in volo
+            for (int i = 0; i < activeBlasts.size(); i++) {
+                KiBlastProjectile b = activeBlasts.get(i);
+                b.update(activeEffects);
+                if (b.isDead) { b.stopSound(); activeBlasts.remove(i); i--; }
+            }
+            return; // salta tutta la lettura input e la logica di stato
         }
 
         // --- KNOCKBACK con Wall Bounce ---
@@ -600,6 +640,7 @@ public abstract class Fighter {
                     launchPhase = 1;
                     launchFrame = 0;
                     launchAnimTimer = 0;
+                    SoundManager.getInstance().play("falling"); // schianto a terra dopo lancio/spike
                 }
             } else {
                 // Ground recovery — 7 frame animati
@@ -725,6 +766,8 @@ public abstract class Fighter {
             flyingBeforeAction = isFlying();
             // Attivazione ISTANTANEA: boost + bonus subito
             auraBoostActive = true;
+            SoundManager.getInstance().startAuraLoop();
+            SoundManager.getInstance().play("aura");
             hp = Math.min(maxHP, hp + auraHPRecover);
             ki = Math.min(MAX_KI, ki + auraKiRecharge);
             // Animazione di carica (solo visuale)
@@ -752,6 +795,7 @@ public abstract class Fighter {
             if (auraEnergy <= 0) {
                 auraEnergy       = 0;
                 auraBoostActive  = false;
+                SoundManager.getInstance().stopAuraLoop();
             }
         } else if (state != FighterState.CHARGING_KI) {
             speed        = (int)(4 * scale);
@@ -924,6 +968,7 @@ public abstract class Fighter {
                     ki -= 50;
                     flyingBeforeAction = isFlying();
                     setState(FighterState.ULTIMATE_STARTUP);
+                    { String s = ultimateChargeSound(); if (s != null) SoundManager.getInstance().play(s); }
                     specialTimer = 0;
                 }
             }
@@ -991,6 +1036,8 @@ public abstract class Fighter {
                     if (flyingBeforeAction) {
                         setState(FighterState.FLYING_IDLE);
                         flyingBeforeAction = false;
+                    } else if (y < groundY) {
+                        setState(FighterState.JUMPING); // era in salto: la gravità riprende
                     } else {
                         setState(FighterState.IDLE);
                     }
@@ -1000,7 +1047,10 @@ public abstract class Fighter {
             // --- ULTIMATE update ---
             if (state == FighterState.ULTIMATE_STARTUP) {
                 specialTimer++;
-                if (specialTimer >= SPECIAL_CHARGE) setState(FighterState.ULTIMATE_ACTIVE);
+                if (specialTimer >= SPECIAL_CHARGE) {
+                    setState(FighterState.ULTIMATE_ACTIVE);
+                    { String s = ultimateFireSound(); if (s != null) SoundManager.getInstance().play(s); }
+                }
             }
             if (state == FighterState.ULTIMATE_ACTIVE) {
                 specialTimer++;
@@ -1014,7 +1064,8 @@ public abstract class Fighter {
                         int finalDamage = 12;
                         if (isCountering) { finalDamage = (int)(finalDamage * 1.5); isCountering = false; }
                         if (auraBoostActive) finalDamage = (int)(finalDamage * auraDamageMultiplier);
-                        opponent.takeDamage(finalDamage, (int)(8 * scale), true);
+                        opponent.takeDamage(finalDamage, (int)(8 * scale),
+                                true, true, false, false, false);
                         onUltimateHit(opponent);
                     }
                 }
@@ -1022,6 +1073,8 @@ public abstract class Fighter {
                     if (flyingBeforeAction) {
                         setState(FighterState.FLYING_IDLE);
                         flyingBeforeAction = false;
+                    } else if (y < groundY) {
+                        setState(FighterState.JUMPING);
                     } else {
                         setState(FighterState.IDLE);
                     }
@@ -1047,6 +1100,7 @@ public abstract class Fighter {
                             new int[]{126, 70, 70}, new int[]{109, 64, 64},
                             new int[]{0, 0, 0}, new int[]{0, 0, 0}, 5, 0.8 * scale,
                             blast.pFacingRight)); // flip in base alla direzione del blast
+                    blast.stopSound();
                     activeBlasts.remove(i); i--; continue;
                 }
                 if (blast.isDead) { activeBlasts.remove(i); i--; }
@@ -1133,6 +1187,58 @@ public abstract class Fighter {
         prevDown    = inDown;
         prevInLight = inLight;
         prevInHeavy = inHeavy;
+
+    }
+
+    // Suoni legati alle transizioni di stato — chiamato a inizio update,
+    // PRIMA di ogni possibile return, cosi' i flag si aggiornano sempre.
+    private void updateTransitionSounds() {
+        // "In aria" ai fini del suono: sono in volo, sto saltando, oppure sto
+        // eseguendo un'azione (attacco/special/teleport) mentre sono staccato
+        // da terra. Cosi' un pugno in salto/volo NON conta come nuovo stacco:
+        // la condizione resta vera per tutta la durata dell'azione aerea,
+        // eliminando il whoosh fantasma al ritorno in volo/salto.
+        boolean airborneForSound =
+                wasFlyingState(state)
+                        || state == FighterState.JUMPING
+                        || ((isAttacking() || state == FighterState.TELEPORTING)
+                        && (flyingBeforeAction || y < groundY));
+
+        boolean flyingNow = airborneForSound;
+
+        // Whoosh: UNA volta, quando si passa da terra ad aria
+        // (stacco del salto o attivazione del volo). Non durante le azioni aeree.
+        if (airborneForSound && !wasFlyingLastFrame) {
+            SoundManager.getInstance().play("whoosh");
+        }
+        // Footstep: 2 passi per ciclo di walk (frame 1 e 4)
+        if (state == FighterState.WALKING) {
+            if ((spriteNum == 1 || spriteNum == 4) && prevWalkFrameForSound != spriteNum) {
+                SoundManager.getInstance().play("footstep");
+            }
+            prevWalkFrameForSound = spriteNum;
+        } else {
+            prevWalkFrameForSound = -1;
+        }
+
+        // Landing: atterraggio normale (salto/volo). Il falling da LAUNCHED
+        // e' gestito al punto d'impatto (LAUNCHED fa return prima).
+        boolean airborneNow = (y < groundY) || wasFlyingState(state) || state == FighterState.JUMPING;
+        if (wasAirborneLastFrame && !airborneNow) {
+            SoundManager.getInstance().play("landing");
+        }
+        wasAirborneLastFrame = airborneNow;
+
+        wasFlyingLastFrame = flyingNow;
+        prevStateForSound = state;
+    }
+
+    private boolean wasFlyingState(FighterState st) {
+        return st == FighterState.FLYING_IDLE
+                || st == FighterState.FLYING_FORWARD
+                || st == FighterState.FLYING_FORWARD_FULL
+                || st == FighterState.FLYING_BACKWARD
+                || st == FighterState.FLYING_BACKWARD_FULL;
     }
 
     // =============================================
@@ -1222,6 +1328,10 @@ public abstract class Fighter {
     // progress: 0.0 (inizio) -> 1.0 (fine). Default: sprite normale.
     // Le sottoclassi fanno override impostando i src* per frame.
     // =============================================
+    // Suoni ultimate — override nelle sottoclassi (null = nessun suono)
+    protected String ultimateChargeSound() { return null; }
+    protected String ultimateFireSound()   { return null; }
+
     public void drawIntroTransform(Graphics2D g2d, double progress) {
         draw(g2d);
     }

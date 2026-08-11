@@ -25,10 +25,14 @@ public class GamePanel extends JPanel implements Runnable {
     public int mainMenuOption = 0;
     public int loadSpriteFrame = 1;
     public int battlePhase = 0;
+    private boolean koSoundPlayed = false;
+    private boolean victoryPlayed = false;
+    private boolean auraTransformPlayed = false;
+    private boolean prevMute = false;
 
     // --- Intro transformation (estetica pura, nessuno stato FSM) ---
     public int transformTimer = 0;
-    public static final int TRANSFORM_DURATION = 120; // 2s a 60fps, sincronizzata per entrambi
+    public static final int TRANSFORM_DURATION = 198; // 3.3s a 60fps, allineata a ready_fight
 
     public int p1Cursor = 0, p2Cursor = 1; // = 4;
     public boolean p1Ready = false, p2Ready = false;
@@ -107,6 +111,12 @@ public class GamePanel extends JPanel implements Runnable {
     public void update() {
         if (menuCooldown > 0) menuCooldown--;
 
+        // Toggle mute globale (tasto Y, edge detection)
+        if (keyH.mutePressed && !prevMute) {
+            SoundManager.getInstance().toggleMute();
+        }
+        prevMute = keyH.mutePressed;
+
         // --- DECREMENTO DELLO SHAKE ---
         if (shakeTimer > 0) shakeTimer--;
 
@@ -119,7 +129,10 @@ public class GamePanel extends JPanel implements Runnable {
             case 0: // LOADING
                 stateTimer++;
                 if (stateTimer % 15 == 0) loadSpriteFrame = (loadSpriteFrame == 1) ? 2 : 1;
-                if (stateTimer > 180) { gameState = 1; stateTimer = 0; }
+                if (stateTimer > 180) {
+                    gameState = 1; stateTimer = 0;
+                    SoundManager.getInstance().startMusic();
+                }
                 break;
 
             case 1: case 2: case 3: case 6: case 7: // MENU VARI
@@ -128,15 +141,20 @@ public class GamePanel extends JPanel implements Runnable {
 
             case 4: // VS SCREEN
                 stateTimer++;
-                if (stateTimer > 180) { gameState = 5; battlePhase = 0; stateTimer = 0; }
+                if (stateTimer > 180) { gameState = 5; battlePhase = 0; stateTimer = 0; SoundManager.getInstance().stopMusic(); SoundManager.getInstance().play("ready_fight"); SoundManager.getInstance().startBattleMusic(); }
                 break;
 
             case 5: // BATTLE
                 if (battlePhase == 0 || battlePhase == 1) {
                     stateTimer++;
                     transformTimer++; // avanza per tutta l'intro (fasi 0 e 1)
-                    if (battlePhase == 0 && stateTimer > 60) { battlePhase = 1; stateTimer = 0; }
-                    if (battlePhase == 1 && stateTimer > 60) { battlePhase = 2; stateTimer = 0; }
+                    // Suono aura quando compare visivamente (ultimo frame, ~83% di 198)
+                    if (!auraTransformPlayed && transformTimer >= 165) {
+                        SoundManager.getInstance().play("aura");
+                        auraTransformPlayed = true;
+                    }
+                    if (battlePhase == 0 && stateTimer > 99) { battlePhase = 1; stateTimer = 0; }
+                    if (battlePhase == 1 && stateTimer > 99) { battlePhase = 2; stateTimer = 0; }
                 }
 
                 if (battlePhase >= 2 && player1 != null && player2 != null) {
@@ -156,12 +174,25 @@ public class GamePanel extends JPanel implements Runnable {
 
                 if (battlePhase == 2) {
                     if (player1.state == FighterState.KO || player2.state == FighterState.KO) {
+                        if (!koSoundPlayed) {
+                            SoundManager.getInstance().stopBattleMusic();
+                            SoundManager.getInstance().stopAuraLoop();
+                            SoundManager.getInstance().play("ko");
+                            koSoundPlayed = true;
+                            victoryPlayed = false;
+                        }
                         battlePhase = 3; stateTimer = 0;
                     }
                 }
                 else if (battlePhase == 3) {
                     stateTimer++;
-                    if (stateTimer > 120) battlePhase = 4;
+                    // Dopo il KO, parte il jingle di vittoria (una volta)
+                    if (!victoryPlayed && stateTimer > 60) {
+                        SoundManager.getInstance().play("victory");
+                        victoryPlayed = true;
+                    }
+                    // La schermata resta per tutta la durata di victory (~7.9s = 475 tick)
+                    if (stateTimer > 475) battlePhase = 4;
                 }
                 else if (battlePhase == 4) {
                     if (keyH.p1_block || keyH.p2_block) {
@@ -170,6 +201,10 @@ public class GamePanel extends JPanel implements Runnable {
                         p1Ready = false; p2Ready = false;
                         player1 = null; player2 = null;
                         transformTimer = 0;
+                        koSoundPlayed = false;
+                        victoryPlayed = false;
+                        auraTransformPlayed = false;
+                        SoundManager.getInstance().startMusic();
                     }
                 }
                 break;

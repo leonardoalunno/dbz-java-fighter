@@ -7,6 +7,7 @@ public class KeyHandler implements KeyListener {
     // --- COMANDI MAIN MENU ---
     // =========================
     public boolean enterPressed;
+    public boolean mutePressed; // tasto Y : toggle audio
 
     // ==========================================
     // --- COMANDI GIOCATORE 1 (Sinistra) ---
@@ -57,6 +58,7 @@ public class KeyHandler implements KeyListener {
 
         // --- MAIN MENU ---
         if (code == KeyEvent.VK_ENTER) enterPressed = true;
+        if (code == KeyEvent.VK_Y) mutePressed = true;
 
         // --- INPUT GIOCATORE 1 ---
         if (code == KeyEvent.VK_W) p1_up    = true;
@@ -93,6 +95,7 @@ public class KeyHandler implements KeyListener {
 
         // --- MAIN MENU ---
         if (code == KeyEvent.VK_ENTER) enterPressed = false;
+        if (code == KeyEvent.VK_Y) mutePressed = false;
 
         // --- RILASCIO GIOCATORE 1 ---
         if (code == KeyEvent.VK_W) p1_up    = false;

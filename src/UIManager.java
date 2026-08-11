@@ -3,6 +3,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 
 public class UIManager {
@@ -30,6 +31,10 @@ public class UIManager {
             case 6: drawCommands(g2d); break;
             case 7: drawCredits(g2d); break;
         }
+
+        // Indicatore mute: presente su ogni schermata dal menu principale in poi
+        // (escludiamo splash = -1 e loading = 0).
+        if (gp.gameState >= 1) drawMuteIcon(g2d);
     }
 
     private void setCustomFont(Graphics2D g2d, float size) {
@@ -40,6 +45,46 @@ public class UIManager {
     private void setBangersFont(Graphics2D g2d, float size) {
         if (rm.bangersFont != null) g2d.setFont(rm.bangersFont.deriveFont(Font.PLAIN, size));
         else g2d.setFont(new Font("Arial", Font.BOLD, (int)size));
+    }
+
+    // =============================================
+    // INDICATORE MUTE — icona altoparlante (on / off)
+    // Le icone sono grigio scuro: un pannellino chiaro dietro
+    // le rende leggibili anche sugli stage scuri.
+    // Per spostare l'icona basta cambiare queste tre costanti.
+    // =============================================
+    private static final int MUTE_ICON_SIZE = 30;
+    private static final int MUTE_ICON_X = GamePanel.SCREEN_WIDTH  - MUTE_ICON_SIZE - 20;
+    private static final int MUTE_ICON_Y = GamePanel.SCREEN_HEIGHT - MUTE_ICON_SIZE - 20;
+
+    private void drawMuteIcon(Graphics2D g2d) {
+        BufferedImage icon = SoundManager.getInstance().isMuted()
+                ? rm.iconSoundOff
+                : rm.iconSoundOn;
+        if (icon == null) return;   // guard: niente crash se il PNG manca
+
+        Object oldAA     = g2d.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        Object oldInterp = g2d.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+        int pad = 7;
+        int bx = MUTE_ICON_X - pad;
+        int by = MUTE_ICON_Y - pad;
+        int bs = MUTE_ICON_SIZE + pad * 2;
+
+        // Pannellino chiaro semi-trasparente (contrasto per l'icona scura)
+        g2d.setColor(new Color(240, 240, 240, 150));
+        g2d.fillRoundRect(bx, by, bs, bs, 10, 10);
+        g2d.setColor(new Color(0, 0, 0, 90));
+        g2d.setStroke(new BasicStroke(1f));
+        g2d.drawRoundRect(bx, by, bs, bs, 10, 10);
+
+        // Icona (downscale morbido grazie all'interpolazione bilineare)
+        g2d.drawImage(icon, MUTE_ICON_X, MUTE_ICON_Y, MUTE_ICON_SIZE, MUTE_ICON_SIZE, null);
+
+        if (oldAA     != null) g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAA);
+        if (oldInterp != null) g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterp);
     }
 
     private void drawSplash(Graphics2D g2d) {
@@ -399,6 +444,11 @@ public class UIManager {
         g2d.drawString("N - Fly", p2X, startY + spacing * 7);
         g2d.drawString("M - Activate Aura", p2X, startY + spacing * 8);
         g2d.drawString("U - Block / Z-Cancel", p2X, startY + spacing * 9);
+
+        // Comando globale (vale per entrambi i giocatori)
+        g2d.setColor(Color.YELLOW); g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        String muteLabel = "Y - Mute Audio";
+        g2d.drawString(muteLabel, (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth(muteLabel)) / 2, startY + spacing * 10 + 10);
 
         g2d.setColor(Color.GRAY); setCustomFont(g2d, 35f); g2d.drawString("Press BLOCK to return to Menu", (GamePanel.SCREEN_WIDTH - g2d.getFontMetrics().stringWidth("Press BLOCK to return to Menu")) / 2, 680);
     }

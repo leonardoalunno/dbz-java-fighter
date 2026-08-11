@@ -41,7 +41,7 @@ public class Vegeta extends Fighter {
 
         // Special (Final Flash) — più lenta ma devastante
         this.MAX_SPECIAL_ENERGY = 3600;
-        this.SPECIAL_CHARGE     = 65;
+        this.SPECIAL_CHARGE     = 90;
         this.SPECIAL_DURATION   = 100;
         this.specialDrainRate   = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
 
@@ -283,7 +283,9 @@ public class Vegeta extends Fighter {
         // Lancio spostato più avanti nella direzione di sguardo
         int startX = facingRight ? x + baseWidth + (int)(50 * scale) : x - (int)(110 * scale);
         int startY = y + (int)(50 * scale);
-        activeBlasts.add(new KiBlastProjectile(startX, startY, facingRight, kiBlastImage, scale));
+        KiBlastProjectile blast = new KiBlastProjectile(startX, startY, facingRight, kiBlastImage, scale);
+        blast.sound = SoundManager.getInstance().playAndReturn("kiblast");
+        activeBlasts.add(blast);
     }
 
     @Override
@@ -299,6 +301,8 @@ public class Vegeta extends Fighter {
                 new int[]{142, 142}, new int[]{120, 120},
                 6, 1.2 * scale));
     }
+
+    @Override protected String ultimateChargeSound() { return "final_flash"; }
 
     // =============================================
     // UPDATE
@@ -432,11 +436,11 @@ public class Vegeta extends Fighter {
                         srcX = spikeX[Math.min(launchFrame, 1)];
                     }
                 } else {
-                // Ground recovery (8 frame)
-                srcW = 153; srcH = 89; srcY = 7575;
-                int[] recX = {2, 157, 312, 467, 622, 777, 932, 1087};
-                srcX = recX[Math.min(launchFrame, 7)];
-            }
+                    // Ground recovery (8 frame)
+                    srcW = 153; srcH = 89; srcY = 7575;
+                    int[] recX = {2, 157, 312, 467, 622, 777, 932, 1087};
+                    srcX = recX[Math.min(launchFrame, 7)];
+                }
             }
 
             case CHARGING_KI -> {

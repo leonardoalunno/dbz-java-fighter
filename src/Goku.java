@@ -41,7 +41,7 @@ public class Goku extends Fighter {
 
         // Special (Kamehameha)
         this.MAX_SPECIAL_ENERGY = 2400;
-        this.SPECIAL_CHARGE     = 40;
+        this.SPECIAL_CHARGE     = 180;
         this.SPECIAL_DURATION   = 90;
         this.specialDrainRate   = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
 
@@ -299,7 +299,9 @@ public class Goku extends Fighter {
         // Punto di partenza allineato al centro della sferetta
         int startX = facingRight ? x + baseWidth + (int)(30 * scale) : x - (int)(60 * scale);
         int startY = y + (int)(33 * scale); // stessa Y del centro sferetta
-        activeBlasts.add(new KiBlastProjectile(startX, startY, facingRight, kiBlastImage, scale));
+        KiBlastProjectile blast = new KiBlastProjectile(startX, startY, facingRight, kiBlastImage, scale);
+        blast.sound = SoundManager.getInstance().playAndReturn("kiblast");
+        activeBlasts.add(blast);
     }
 
     @Override
@@ -315,6 +317,8 @@ public class Goku extends Fighter {
                 new int[]{142, 142}, new int[]{120, 120},
                 6, 1.2 * scale));
     }
+
+    @Override protected String ultimateChargeSound() { return "kamehameha"; }
 
     // =============================================
     // UPDATE

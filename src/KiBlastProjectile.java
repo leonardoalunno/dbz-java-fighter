@@ -9,6 +9,7 @@ public class KiBlastProjectile {
     public BufferedImage img;
     public boolean isDead = false;
     public double pScaleMultiplier; // Conserva la scala del lanciatore
+    public javax.sound.sampled.Clip sound; // suono associato, fermato all'impatto
 
     public KiBlastProjectile(int x, int y, boolean dir, BufferedImage img, double scaleMultiplier) {
         this.px = x;
@@ -66,6 +67,14 @@ public class KiBlastProjectile {
 
             if (pFacingRight) g2d.drawImage(img, dX, dY, dX + dW, dY + dH, bX[frame], bY[frame], bX[frame] + bW[frame], bY[frame] + bH[frame], null);
             else g2d.drawImage(img, dX + dW, dY, dX, dY + dH, bX[frame], bY[frame], bX[frame] + bW[frame], bY[frame] + bH[frame], null);
+        }
+    }
+
+    public void stopSound() {
+        if (sound != null) {
+            sound.stop();
+            sound.close();
+            sound = null;
         }
     }
 }

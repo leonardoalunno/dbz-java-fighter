@@ -47,6 +47,9 @@ public class ResourceManager {
     // --- Array per i portrait dei personaggi (stesso ordine del charNames: Goku, Vegeta, Trunks, Broly, Beerus) ---
     public BufferedImage[] portraits = new BufferedImage[5];
 
+    // -- SOUND ON e SOUND OFF --
+    public BufferedImage iconSoundOn, iconSoundOff;
+
     private ResourceManager() {
         loadImages();
     }
@@ -122,6 +125,8 @@ public class ResourceManager {
             hudFull = ImageIO.read(getClass().getResourceAsStream("/assets/menu/hud.png"));
             pinP1 = ImageIO.read(getClass().getResourceAsStream("/assets/menu/pin_player_one.png"));
             pinP2 = ImageIO.read(getClass().getResourceAsStream("/assets/menu/pin_player_two.png"));
+            iconSoundOn  = ImageIO.read(getClass().getResourceAsStream("/assets/menu/sound_on.png"));
+            iconSoundOff = ImageIO.read(getClass().getResourceAsStream("/assets/menu/sound_off.png"));
 
             // 5. CARICAMENTO EFFETTI VISIVI (VFX)
             kiblastBlue = ImageIO.read(getClass().getResourceAsStream("/assets/effects/kiblast_blue.png"));
