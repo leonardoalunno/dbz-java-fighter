@@ -8,6 +8,7 @@ public class KeyHandler implements KeyListener {
     // =========================
     public boolean enterPressed;
     public boolean mutePressed; // tasto Y : toggle audio
+    public boolean trainingExitPressed; // tasto H : esci dal training
 
     // ==========================================
     // --- COMANDI GIOCATORE 1 (Sinistra) ---
@@ -59,6 +60,7 @@ public class KeyHandler implements KeyListener {
         // --- MAIN MENU ---
         if (code == KeyEvent.VK_ENTER) enterPressed = true;
         if (code == KeyEvent.VK_Y) mutePressed = true;
+        if (code == KeyEvent.VK_H) trainingExitPressed = true;
 
         // --- INPUT GIOCATORE 1 ---
         if (code == KeyEvent.VK_W) p1_up    = true;
@@ -96,6 +98,7 @@ public class KeyHandler implements KeyListener {
         // --- MAIN MENU ---
         if (code == KeyEvent.VK_ENTER) enterPressed = false;
         if (code == KeyEvent.VK_Y) mutePressed = false;
+        if (code == KeyEvent.VK_H) trainingExitPressed = false;
 
         // --- RILASCIO GIOCATORE 1 ---
         if (code == KeyEvent.VK_W) p1_up    = false;

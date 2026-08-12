@@ -125,8 +125,9 @@ public abstract class Fighter {
     // =============================================
     // GUARD SYSTEM
     // =============================================
-    protected int guardHealth        = 100;
-    protected final int MAX_GUARD_HEALTH     = 100;
+    protected int guardHealth        = 60;
+    protected final int MAX_GUARD_HEALTH     = 60;
+    protected final int GUARD_CHIP           = 12; // guardHealth persa per colpo parato (fissa, non scala con la combo)
     protected int guardCrushTimer    = 0;
     protected final int GUARD_CRUSH_DURATION = 45;
     protected final int PERFECT_GUARD_WINDOW = 8;
@@ -135,6 +136,10 @@ public abstract class Fighter {
     protected int counterWindow      = 0;
     protected final int COUNTER_WINDOW_DURATION = 22;
     protected int blockTimer         = 0;
+    protected int guardRegenTimer    = 0;
+    protected final int GUARD_REGEN_INTERVAL = 12; // +1 guardHealth ogni 12 frame
+    protected int guardRegenDelay    = 0;
+    protected final int GUARD_REGEN_DELAY    = 90; // frame di attesa dopo una parata prima del recupero
 
     // =============================================
     // KNOCKBACK & HITSTUN
@@ -288,6 +293,66 @@ public abstract class Fighter {
     }
 
     // =============================================
+    // SEPARAZIONE DEI CORPI (pushbox)
+    // Evita che i due lottatori restino sovrapposti/incastrati quando
+    // finiscono nello stesso punto (atterraggio, uscita dal volo,
+    // teletrasporto). Da invocare UNA volta per frame da GamePanel,
+    // dopo l'update di entrambi i lottatori.
+    // =============================================
+    private static final int MAX_SEPARATION_PUSH = 6; // px max di spinta per lottatore, per frame
+
+    public void resolveOverlap(Fighter other) {
+        // Attivo quando entrambi sono "controllati": a terra (stati neutri) o in volo.
+        // Il salto (arco balistico) resta libero, cosi' si puo' ancora scavalcare.
+        if (!canBePushed() || !other.canBePushed()) return;
+
+        // Sovrapposizione orizzontale dei due corpi
+        int overlapX = Math.min(x + baseWidth, other.x + other.baseWidth)
+                - Math.max(x, other.x);
+        if (overlapX <= 0) return; // i corpi non si toccano in orizzontale
+
+        // Sovrapposizione verticale: in volo evita di spingere chi sta piu' in alto o
+        // piu' in basso. A terra i corpi sono alla stessa quota, quindi e' sempre vera.
+        int overlapY = Math.min(y + baseHeight, other.y + other.baseHeight)
+                - Math.max(y, other.y);
+        if (overlapY <= 0) return; // non si toccano in verticale
+
+        int push = Math.min((overlapX + 1) / 2, MAX_SEPARATION_PUSH); // meta' a testa, limitata
+        int thisCenter  = x + baseWidth / 2;
+        int otherCenter = other.x + other.baseWidth / 2;
+        boolean thisIsLeft = (thisCenter < otherCenter)
+                || (thisCenter == otherCenter && playerID < other.playerID);
+
+        if (thisIsLeft) { x -= push; other.x += push; }
+        else            { x += push; other.x -= push; }
+
+        clampX();
+        other.clampX();
+    }
+
+    // Corpo "solido" quando si e' a terra (stati neutri) o in volo.
+    // Il salto e gli stati di danno (hitstun, launched, KO, ecc.) restano esclusi.
+    private boolean canBePushed() {
+        return isGrounded() || isFlying();
+    }
+
+    // Mantiene la x dentro i bordi dello schermo
+    private void clampX() {
+        if (x < 0) x = 0;
+        if (x > GamePanel.SCREEN_WIDTH - baseWidth) x = GamePanel.SCREEN_WIDTH - baseWidth;
+    }
+
+    // Modalità TRAINING: mantiene piene tutte le risorse ed evita il KO.
+    // Va chiamato ogni frame PRIMA dell'update, cosi' un singolo colpo
+    // non puo' portare gli HP a zero.
+    public void refillForTraining() {
+        hp            = maxHP;
+        ki            = MAX_KI;
+        specialEnergy = MAX_SPECIAL_ENERGY;
+        auraEnergy    = MAX_AURA_ENERGY;
+    }
+
+    // =============================================
     // HITBOX ATTACCO CORRENTE
     // Usata per il rilevamento colpi nel update()
     // =============================================
@@ -364,9 +429,10 @@ public abstract class Fighter {
                 return;
             }
 
-            // --- GUARDIA NORMALE ---
-            if (isEnergy) hp -= Math.max(1, amount / 4);
-            guardHealth   -= amount / 2;
+            // --- GUARDIA NORMALE: danno ridotto del 70% (subisce il 30%) ---
+            hp = Math.max(1, hp - Math.max(1, (int)(amount * 0.30)));
+            guardHealth   -= GUARD_CHIP;          // costo fisso: non scala con la combo
+            guardRegenDelay = GUARD_REGEN_DELAY;  // blocca il recupero per un po' dopo ogni parata
             knockbackSpeed = appliedKnockback / 3;
             blockTimer++;
 
@@ -672,9 +738,19 @@ public abstract class Fighter {
             return;
         }
 
-        // Recupero guardia passivo
-        if (!isBlocking() && guardHealth < MAX_GUARD_HEALTH)
-            guardHealth = Math.min(MAX_GUARD_HEALTH, guardHealth + 1);
+        // Recupero guardia passivo: lento, solo fuori dalla guardia e dopo un ritardo dall'ultima parata
+        if (guardRegenDelay > 0) {
+            guardRegenDelay--;
+            guardRegenTimer = 0;
+        } else if (!isBlocking() && guardHealth < MAX_GUARD_HEALTH) {
+            guardRegenTimer++;
+            if (guardRegenTimer >= GUARD_REGEN_INTERVAL) {
+                guardHealth++;
+                guardRegenTimer = 0;
+            }
+        } else {
+            guardRegenTimer = 0;
+        }
 
         // --- LETTURA INPUT ---
         inUp      = (playerID == 1) ? keyH.p1_up      : keyH.p2_up;

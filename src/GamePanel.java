@@ -25,10 +25,12 @@ public class GamePanel extends JPanel implements Runnable {
     public int mainMenuOption = 0;
     public int loadSpriteFrame = 1;
     public int battlePhase = 0;
+    public boolean trainingMode = false;         // true = modalità TRAINING
     private boolean koSoundPlayed = false;
     private boolean victoryPlayed = false;
     private boolean auraTransformPlayed = false;
     private boolean prevMute = false;
+    private boolean prevTrainingExit = false;    // edge detection tasto H
 
     // --- Intro transformation (estetica pura, nessuno stato FSM) ---
     public int transformTimer = 0;
@@ -51,6 +53,10 @@ public class GamePanel extends JPanel implements Runnable {
      * --------------------------------------------------------------- */
 
     public int stageCursor = 0;
+
+    // Stage selezionabili in TRAINING: Gravity Training (3),
+    // Hyperbolic Time Chamber (4), King Kai's Planet (6).
+    public final int[] trainingStages = {3, 4, 6};
 
     // --- NUOVI 17 STAGE ---
     public String[] stageNames = {
@@ -158,8 +164,23 @@ public class GamePanel extends JPanel implements Runnable {
                 }
 
                 if (battlePhase >= 2 && player1 != null && player2 != null) {
+                    // TRAINING: risorse piene e nessun KO (refill PRIMA degli update)
+                    if (trainingMode) {
+                        player1.refillForTraining();
+                        player2.refillForTraining();
+
+                        // Uscita dal training con H (edge detection)
+                        if (keyH.trainingExitPressed && !prevTrainingExit) {
+                            returnToMenu();
+                            prevTrainingExit = keyH.trainingExitPressed;
+                            break;
+                        }
+                        prevTrainingExit = keyH.trainingExitPressed;
+                    }
+
                     player1.update(keyH, player2);
                     player2.update(keyH, player1);
+                    player1.resolveOverlap(player2); // separa i corpi se sovrapposti
 
                     // --- TRUCCO: LEGGIAMO L'IMPATTO PER GENERARE LO SHAKE! ---
                     // Se un giocatore viene colpito (hitTimer = 1 è il primo frame dell'impatto)
@@ -173,7 +194,7 @@ public class GamePanel extends JPanel implements Runnable {
                 }
 
                 if (battlePhase == 2) {
-                    if (player1.state == FighterState.KO || player2.state == FighterState.KO) {
+                    if (!trainingMode && (player1.state == FighterState.KO || player2.state == FighterState.KO)) {
                         if (!koSoundPlayed) {
                             SoundManager.getInstance().stopBattleMusic();
                             SoundManager.getInstance().stopAuraLoop();
@@ -196,19 +217,29 @@ public class GamePanel extends JPanel implements Runnable {
                 }
                 else if (battlePhase == 4) {
                     if (keyH.p1_block || keyH.p2_block) {
-                        gameState = 1;
-                        menuCooldown = COOLDOWN_TIME;
-                        p1Ready = false; p2Ready = false;
-                        player1 = null; player2 = null;
-                        transformTimer = 0;
-                        koSoundPlayed = false;
-                        victoryPlayed = false;
-                        auraTransformPlayed = false;
-                        SoundManager.getInstance().startMusic();
+                        returnToMenu();
                     }
                 }
                 break;
         }
+    }
+
+    // Ritorno al menu principale: reset completo dello stato di battaglia.
+    // Usato sia dall'uscita normale (dopo la vittoria) sia dall'uscita
+    // dal training con il tasto H.
+    private void returnToMenu() {
+        gameState = 1;
+        menuCooldown = COOLDOWN_TIME;
+        p1Ready = false; p2Ready = false;
+        player1 = null; player2 = null;
+        transformTimer = 0;
+        koSoundPlayed = false;
+        victoryPlayed = false;
+        auraTransformPlayed = false;
+        trainingMode = false;
+        SoundManager.getInstance().stopBattleMusic();
+        SoundManager.getInstance().stopAuraLoop();
+        SoundManager.getInstance().startMusic();
     }
 
     public Fighter createFighter(int cursorIndex, int x, int y, int playerID) {

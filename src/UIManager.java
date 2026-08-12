@@ -395,6 +395,30 @@ public class UIManager {
             g2d.drawImage(currentStatusIcon, (GamePanel.SCREEN_WIDTH - drawW) / 2, 250, drawW, targetH, null);
         }
 
+        // --- ETICHETTA TRAINING ---
+        if (gp.trainingMode) {
+            setCustomFont(g2d, 30f);
+            String tLabel = "TRAINING";
+            int tlw = g2d.getFontMetrics().stringWidth(tLabel);
+            int tlx = (GamePanel.SCREEN_WIDTH - tlw) / 2;
+            int tly = 40;
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.drawString(tLabel, tlx + 2, tly + 2);
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString(tLabel, tlx, tly);
+
+            // Sottotitolo: come uscire dal training
+            setCustomFont(g2d, 18f);
+            String tExit = "Press H to Exit";
+            int tew = g2d.getFontMetrics().stringWidth(tExit);
+            int tex = (GamePanel.SCREEN_WIDTH - tew) / 2;
+            int tey = tly + 26;
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.drawString(tExit, tex + 2, tey + 2);
+            g2d.setColor(new Color(210, 210, 210));
+            g2d.drawString(tExit, tex, tey);
+        }
+
         // --- SCHERMATA VITTORIA (Fase 4) ---
         if (gp.battlePhase == 4) {
             // Overlay scuro

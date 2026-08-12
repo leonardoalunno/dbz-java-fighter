@@ -48,7 +48,8 @@ public class MenuController {
             }
             if (gp.keyH.p1_light || gp.keyH.enterPressed) {
                 SoundManager.getInstance().play("confirm");
-                if (gp.mainMenuOption == 0) gp.gameState = 2; // Z BATTLE VS
+                if (gp.mainMenuOption == 0) { gp.trainingMode = false; gp.gameState = 2; } // Z BATTLE VS
+                else if (gp.mainMenuOption == 1) { gp.trainingMode = true; gp.stageCursor = gp.trainingStages[0]; gp.gameState = 2; } // TRAINING
                 else if (gp.mainMenuOption == 2) gp.gameState = 6; // COMMANDS
                 else if (gp.mainMenuOption == 3) gp.gameState = 7; // CREDITS
                 else if (gp.mainMenuOption == 4) System.exit(0); // Exit
@@ -117,19 +118,39 @@ public class MenuController {
             // Recuperiamo il numero totale di stage (ora sono 17!)
             int totalStages = gp.stageNames.length;
 
-            // --- Scorrimento a DESTRA ---
-            if (gp.keyH.p1_right) {
-                gp.stageCursor = (gp.stageCursor + 1) % totalStages;
-                gp.menuCooldown = gp.COOLDOWN_TIME;
-                SoundManager.getInstance().play("select");
-            }
+            if (gp.trainingMode) {
+                // --- TRAINING: solo i 3 stage consentiti ---
+                int pos = 0;
+                for (int i = 0; i < gp.trainingStages.length; i++)
+                    if (gp.trainingStages[i] == gp.stageCursor) pos = i;
 
-            // --- Scorrimento a SINISTRA ---
-            // Aggiungiamo totalStages prima di sottrarre 1 per evitare numeri negativi nel modulo
-            if (gp.keyH.p1_left) {
-                gp.stageCursor = (gp.stageCursor + totalStages - 1) % totalStages;
-                gp.menuCooldown = gp.COOLDOWN_TIME;
-                SoundManager.getInstance().play("select");
+                if (gp.keyH.p1_right) {
+                    pos = (pos + 1) % gp.trainingStages.length;
+                    gp.stageCursor = gp.trainingStages[pos];
+                    gp.menuCooldown = gp.COOLDOWN_TIME;
+                    SoundManager.getInstance().play("select");
+                }
+                if (gp.keyH.p1_left) {
+                    pos = (pos + gp.trainingStages.length - 1) % gp.trainingStages.length;
+                    gp.stageCursor = gp.trainingStages[pos];
+                    gp.menuCooldown = gp.COOLDOWN_TIME;
+                    SoundManager.getInstance().play("select");
+                }
+            } else {
+                // --- Scorrimento a DESTRA ---
+                if (gp.keyH.p1_right) {
+                    gp.stageCursor = (gp.stageCursor + 1) % totalStages;
+                    gp.menuCooldown = gp.COOLDOWN_TIME;
+                    SoundManager.getInstance().play("select");
+                }
+
+                // --- Scorrimento a SINISTRA ---
+                // Aggiungiamo totalStages prima di sottrarre 1 per evitare numeri negativi nel modulo
+                if (gp.keyH.p1_left) {
+                    gp.stageCursor = (gp.stageCursor + totalStages - 1) % totalStages;
+                    gp.menuCooldown = gp.COOLDOWN_TIME;
+                    SoundManager.getInstance().play("select");
+                }
             }
 
             // --- Tasto per avviare la battaglia ---
