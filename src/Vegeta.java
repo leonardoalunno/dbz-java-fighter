@@ -39,8 +39,8 @@ public class Vegeta extends Fighter {
         this.kiBlastDamage = 12;
         this.specialDamage = 50;
 
-        // Special (Final Flash) — più lenta ma devastante
-        this.MAX_SPECIAL_ENERGY = 3600;
+        // Special (Final Flash)
+        this.MAX_SPECIAL_ENERGY = 2400;
         this.SPECIAL_CHARGE     = 90;
         this.SPECIAL_DURATION   = 100;
         this.specialDrainRate   = MAX_SPECIAL_ENERGY / SPECIAL_DURATION;
@@ -658,8 +658,6 @@ public class Vegeta extends Fighter {
     }
 
 
-    private static final boolean DEBUG_BEAM = false;
-
     private void drawFinalFlash(Graphics2D g2d) {
         // Coordinate beam sprite (nuovo foglio)
         int headSrcX = 1260, headSrcY = 3751, headW = 86, headH = 80;
@@ -714,13 +712,6 @@ public class Vegeta extends Fighter {
                 g2d.drawImage(spriteSheet, startX, beamY, targetX, beamY + drawHeadH,
                         headSrcX, headSrcY, headSrcX + headW, headSrcY + headH, null);
             }
-        }
-
-        if (DEBUG_BEAM) {
-            g2d.setColor(java.awt.Color.MAGENTA);
-            int sx = facingRight ? x + shiftX + drawW : x + shiftX;
-            g2d.drawLine(sx, beamY, targetX, beamY);              // asse del beam
-            g2d.drawRect(sx - 3, beamY - 3, 6, 6);                // punto di partenza
         }
     }
 

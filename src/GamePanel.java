@@ -36,7 +36,7 @@ public class GamePanel extends JPanel implements Runnable {
     public int transformTimer = 0;
     public static final int TRANSFORM_DURATION = 198; // 3.3s a 60fps, allineata a ready_fight
 
-    public int p1Cursor = 0, p2Cursor = 1; // = 4;
+    public int p1Cursor = 0, p2Cursor = 1;
     public boolean p1Ready = false, p2Ready = false;
     public String[] charNames = {"Goku", "Vegeta"};
 

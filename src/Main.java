@@ -11,7 +11,6 @@ public class Main {
             // Creiamo la finestra
             JFrame window = new JFrame("Dragon Ball Z - Exam Project");
 
-            // Diciamo al programma di chiudersi quando premiamo la X
             window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             // Impediamo all'utente di ridimensionare la finestra e sballare le proporzioni
@@ -24,7 +23,6 @@ public class Main {
             // Pack dice alla finestra di "restringersi" attorno alle dimensioni del GamePanel
             window.pack();
 
-            // Centriamo la finestra al centro dello schermo del tuo Mac
             window.setLocationRelativeTo(null);
 
             Image icon = ResourceManager.getInstance().appIcon;
@@ -42,7 +40,6 @@ public class Main {
             // Finalmente, rendiamo tutto visibile!
             window.setVisible(true);
 
-            // ACCENDIAMO IL MOTORE!
             gamePanel.startGameThread();
 
         });

@@ -97,7 +97,6 @@ public class ResourceManager {
             iconBroly = ImageIO.read(getClass().getResourceAsStream("/assets/characters/characters_icons/icon_broly.png"));
 
             // 3. CARICAMENTO DEGLI STAGE
-            // NOMI ESATTI DELLE CARTELLE COME DA SCREENSHOT
             String[] folderNames = {
                     "cavern", "cell_games_arena", "galactic_arena", "gravity_training",
                     "hyperbolic_time_chamber", "islands", "kings_kai_planet", "land_of_the_kais",
@@ -148,7 +147,6 @@ public class ResourceManager {
             // --- CARICAMENTO ASSET VS SCREEN ---
             vsIcon = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_icon.png"));
             vsBg = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_bg.png"));
-            // Sostituisci i nomi se i file li hai chiamati Image_vs_top.png ecc.
             vsLeft = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_left.png"));
             vsRight = ImageIO.read(getClass().getResourceAsStream("/assets/menu/vs_right.png"));
 
